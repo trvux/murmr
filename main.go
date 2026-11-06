@@ -1,0 +1,192 @@
+// murmr: a free, local Wispr Flow clone.
+// Hold the right Option key, speak, release: text is transcribed locally with
+// whisper.cpp, optionally cleaned by an LLM, and pasted into the focused app.
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
+	"time"
+)
+
+func main() {
+	log.SetFlags(log.Ltime)
+	if len(os.Args) > 1 {
+		if err := runCommand(os.Args[1], os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "murmr:", err)
+			os.Exit(1)
+		}
+		return
+	}
+	daemon()
+}
+
+func configDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".config", "murmr")
+}
+
+func historyPath() string { return filepath.Join(configDir(), "history.jsonl") }
+func ignoredPath() string { return filepath.Join(configDir(), "ignored.txt") }
+
+func daemon() {
+	model := getenv("MURMR_MODEL", "models/ggml-large-v3-turbo-q5_0.bin")
+	if !fileExists(model) {
+		log.Fatalf("model not found: %s (set MURMR_MODEL)", model)
+	}
+	dict, cleaner := loadCleaner()
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	if len(vadArgs()) > 0 {
+		log.Printf("vad: on (non-speech is ignored)")
+	} else {
+		log.Printf("vad: OFF (model missing or MURMR_VAD=off): Whisper may invent text from noise")
+	}
+	log.Printf("starting whisper-server (first launch compiles Metal shaders, ~10s)...")
+	wh, err := StartWhisper(ctx, model, getenv("MURMR_PORT", "8178"), dict.WhisperPrompt(whisperPrompt))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer wh.Stop()
+
+	rec, err := NewRecorder()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rec.Close()
+
+	keys, err := StartHoldKey()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Jobs run one at a time so pastes keep the order you spoke them in.
+	jobs := make(chan job, 4)
+	go func() {
+		for j := range jobs {
+			process(wh, cleaner, dict, j)
+		}
+	}()
+
+	playSound(getenv("MURMR_SOUND_READY", "Glass"))
+	log.Printf("ready. hold RIGHT Option to dictate, Ctrl+C to quit")
+
+	var appc <-chan appCtx
+	for {
+		select {
+		case <-ctx.Done():
+			log.Printf("bye")
+			return
+		case down := <-keys:
+			if !down {
+				pcm := rec.Stop()
+				playSound(getenv("MURMR_SOUND_STOP", "Pop"))
+				select {
+				case jobs <- job{pcm: pcm, ctx: appc}:
+				default:
+					log.Printf("busy, dropped this clip")
+				}
+				continue
+			}
+			if err := rec.Start(); err != nil {
+				log.Printf("mic start: %v", err)
+				continue
+			}
+			// Read the target app now, before the user can switch away; the slow
+			// part runs in the background while they speak.
+			ch := make(chan appCtx, 1)
+			go func() { ch <- readAppCtx() }()
+			appc = ch
+			playSound(getenv("MURMR_SOUND_START", "Tink"))
+			log.Printf("recording...")
+		}
+	}
+}
+
+type job struct {
+	pcm []int16
+	ctx <-chan appCtx // resolved while the user was speaking
+}
+
+func process(wh *Whisper, cleaner Cleaner, dict *Dictionary, j job) {
+	pcm := j.pcm
+	app := <-j.ctx
+	style := styleFor(app)
+	if isSilent(pcm) {
+		log.Printf("too short/silent, skipped (%.1fs, level %.4f)", float64(len(pcm))/sampleRate, rms(pcm))
+		return
+	}
+	t0 := time.Now()
+	wav := encodeWAV(pcm)
+	if dir := os.Getenv("MURMR_SAVE"); dir != "" {
+		_ = os.MkdirAll(dir, 0o755)
+		_ = os.WriteFile(filepath.Join(dir, time.Now().Format("150405")+".wav"), wav, 0o644)
+	}
+	tr, err := wh.Transcribe(wav)
+	if err != nil {
+		log.Printf("transcribe: %v", err)
+		return
+	}
+	if !hasWord(tr.Text) { // Whisper sometimes returns just "." for silence or noise
+		log.Printf("no speech detected (%.1fs of audio, level %.4f)", float64(len(pcm))/sampleRate, rms(pcm))
+		return
+	}
+	raw := dict.Apply(tr.Text)
+	tSTT := time.Since(t0)
+
+	text := raw
+	if cleaner != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), cleanupTimeout)
+		cleaned, err := cleaner.Clean(ctx, raw, stylePrompt(style))
+		cancel()
+		if err != nil || cleaned == "" {
+			log.Printf("cleanup failed, using raw: %v", err)
+		} else {
+			text = cleaned
+		}
+	}
+	text = dict.Apply(text)
+	log.Printf("stt %v, total %v, level %.4f, app %s [%s] (%s)\n  raw:   %s\n  final: %s",
+		tSTT.Round(time.Millisecond), time.Since(t0).Round(time.Millisecond), rms(pcm), app.Bundle, app.Title, style, raw, text)
+
+	if os.Getenv("MURMR_HISTORY") != "off" {
+		e := Entry{Time: time.Now(), Raw: tr.Text, Final: text, Weak: tr.Weak, App: app.Bundle}
+		if err := AppendHistory(historyPath(), e); err != nil {
+			log.Printf("history: %v", err)
+		}
+	}
+
+	if err := pasteText(text); err != nil {
+		log.Printf("paste (grant Accessibility to your terminal?): %v", err)
+	}
+}
+
+func getenv(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}
+
+// loadCleaner builds the personal dictionary (with hints learned from history)
+// and the LLM cleaner that uses it.
+func loadCleaner() (*Dictionary, Cleaner) {
+	dict := LoadDictionary(getenv("MURMR_DICT", filepath.Join(configDir(), "dictionary.txt")))
+	hist, _ := LoadHistory(historyPath())
+	dict.Hints = LearnPairs(hist, LoadIgnored(ignoredPath()), learnMinCount)
+	log.Printf("dictionary: %d terms, learned hints: %d (from %d dictations)", len(dict.Terms), len(dict.Hints), len(hist))
+	cleaner := pickCleaner(os.Getenv("MURMR_CLEANUP"), os.Getenv("DEEPSEEK_API_KEY"), getenv("DEEPSEEK_MODEL", "deepseek-flash"), os.Getenv("ANTHROPIC_API_KEY"), dict.CleanupSystem(cleanupSystem))
+	if cleaner != nil {
+		log.Printf("cleanup: %s", cleaner.Name())
+	} else {
+		log.Printf("cleanup: off (raw whisper output)")
+	}
+	return dict, cleaner
+}

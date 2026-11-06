@@ -1,0 +1,21 @@
+# build output
+/murmr
+
+# downloaded models and third-party code (see README for the setup commands)
+/models/
+/phoneme/.venv/
+/voice/.venv/
+/voice/OpenVoice/
+/voice/ckpt/
+
+# the learner's own voice: recordings and anything generated from them. Never commit.
+/clips/
+/voice/out/
+/voice/ref_clean/
+*.wav
+*.aiff
+*.bin
+*.pth
+
+__pycache__/
+.DS_Store
