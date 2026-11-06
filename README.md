@@ -80,6 +80,40 @@ for your terminal. Without a cleanup key it still works, with raw Whisper output
 | `./murmr progress` | weekly accuracy and which sound classes are hardest |
 | `./murmr score <file.wav> "<text>"` | phoneme-score an existing recording |
 
+## AI API keys (read this before you fork)
+
+Murmr Stream calls a hosted LLM for **one step only: cleaning up the transcript** (removing fillers,
+fixing punctuation and mis-heard terms, handling pronouns). Speech recognition, VAD, phoneme scoring and
+the own-voice replay all run locally and use no API.
+
+| Provider | Key variable | Model | Endpoint |
+|---|---|---|---|
+| DeepSeek (default when its key is set) | `DEEPSEEK_API_KEY` | `deepseek-flash` (override with `DEEPSEEK_MODEL`) | `https://api.deepseek.com/chat/completions` |
+| Anthropic | `ANTHROPIC_API_KEY` | `claude-haiku-4-5-20251001` (set in `cleanup.go`) | `https://api.anthropic.com/v1/messages` |
+
+Get keys from [platform.deepseek.com](https://platform.deepseek.com) or
+[console.anthropic.com](https://console.anthropic.com). You are billed by the provider per request;
+check their pricing. Pick one with `MURMR_CLEANUP=deepseek|claude`, or `none` to use no API at all
+(you then get raw Whisper output).
+
+**Where to put keys.** In `~/.config/murmr/env`, outside the repository, with `chmod 600`.
+`run.sh` loads that file. Never put a key in the source tree or in a commit. If one leaks, revoke it
+at the provider right away; deleting the commit is not enough.
+
+**What is sent with every dictation** (this is the full list):
+
+- the transcript text (after your `wrong -> Right` dictionary fixes);
+- a system prompt made of the cleanup rules, the **terms from your personal dictionary** (so any names
+  you add there go to the provider), the **learned hints** (pairs of "heard X, meant Y" from your history)
+  and a short pronoun-style note.
+
+**What is not sent:** audio, the focused app's name, window titles, your history file, or any
+other provider's key.
+
+If a request fails or takes longer than 8 seconds, the raw Whisper text is pasted instead, so
+dictation never blocks on the network. If you point a fork at another provider, read that provider's
+data-retention terms first, because dictation text can contain private things.
+
 ## Configuration
 
 Set in `~/.config/murmr/env` (all optional except a cleanup key if you want cleanup):
@@ -116,4 +150,6 @@ attempt and the correct version back to back.
 
 ## License
 
-No license has been chosen yet, so all rights are reserved for now.
+MIT, see [LICENSE](LICENSE). Pieces you download separately (whisper.cpp and its models, the Silero VAD
+model, OpenVoice, the wav2vec2 phoneme model, espeak-ng) have their own licenses; check them before
+redistributing anything that includes them.
