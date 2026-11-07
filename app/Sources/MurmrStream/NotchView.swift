@@ -194,10 +194,11 @@ struct WaveView: View {
     }
 }
 
-/// The brand's mark as a wave, behaving like the smooth-line style (three layers running at different speeds, tapering to
+/// The brand's mark as a wave, behaving like the smooth-line style (several lines running at different speeds, tapering to
 /// nothing at both ends, an amplitude that follows the voice and reaches most of the row) but drawn in the logo's hand:
-/// instead of a sine, a chain of wing-beats, each a rounded arch that falls into a point (1 - 2|sin|). The main layer
-/// takes its colour from the voice. The swing is capped inside the frame, so no arch is ever cut off.
+/// instead of a sine, a chain of wing-beats, each a rounded arch that falls into a point (1 - 2|sin|). Five lines weave,
+/// each with its own thickness. The colour follows the voice, from pale cream to rich clay, deepest where the swing is
+/// tallest. The swing is capped inside the frame, so no arch is ever cut off.
 struct FlockWave: View {
     let level: CGFloat
 
