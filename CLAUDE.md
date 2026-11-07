@@ -23,6 +23,14 @@ in the first line. Change both in the same commit and run `scripts/check-docs.sh
 gains a section, table row, code block, image or link the other lacks. `CHANGELOG.md` stays English (the release notes
 come from it); the release page footer (`.github/release-footer.md`) carries both languages.
 
+## The website (`web/`)
+
+murmr.phren.dev: Next.js 16 + bun + shadcn/ui + Motion, English and Vietnamese. Read `web/README.md` first, and the guides in
+`web/node_modules/next/dist/docs/` (this Next differs from older ones). Every word is in `web/src/dictionaries` (one type, two
+languages); examples shown as "real outputs" must come from running `murmr clean`, never hand-written. Check with
+`cd web && bunx tsc --noEmit && bun run lint && bun run build`; CI runs the same (`.github/workflows/web.yml`). Do not name
+other products on the site. Changes to the VPS, DNS or the Caddyfile there need the user's explicit yes.
+
 ## Interface languages
 
 The app speaks English and Vietnamese (`L10n.swift`). Words in the code are Vietnamese and are the keys; English lives in
