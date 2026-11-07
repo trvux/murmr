@@ -111,7 +111,7 @@ struct AppsPage: View {
     private var appsSection: some View {
         VStack(alignment: .leading, spacing: Theme.Space.m) {
             Eyebrow("Theo ứng dụng")
-            Text("Chỉ cần thêm app mà bạn xưng hô khác mặc định, ví dụ nói **tao/mày** với AI trong terminal nhưng **tôi/bạn** khi viết email.")
+            Text("Chỉ cần thêm app mà bạn xưng hô khác mặc định, ví dụ thân mật với bạn bè nhưng **tôi/bạn** khi viết thư công việc.")
                 .font(Theme.Typeface.caption)
                 .foregroundStyle(Theme.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -160,7 +160,7 @@ struct AppsPage: View {
             }
 
             HStack(spacing: Theme.Space.s) {
-                InputField(placeholder: "Tiêu đề chứa…, ví dụ: - Gmail", text: $ruleText, onSubmit: addRule)
+                InputField(placeholder: "Tiêu đề chứa…, ví dụ: Gia đình", text: $ruleText, onSubmit: addRule)
                 MenuField(label: store.name(for: ruleProfile)) {
                     Picker("Xưng hô", selection: $ruleProfile) {
                         Text("Giữ nguyên").tag(PronounProfile.keepID)

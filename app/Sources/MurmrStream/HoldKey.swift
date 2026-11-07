@@ -26,7 +26,7 @@ struct HoldKey: Equatable {
     /// What is worth knowing about this key, said once under it (nil when there is nothing to add).
     var note: String? {
         if !isModifierOnly {
-            return "Khi bạn giữ tổ hợp này, nó không đến được app đang dùng. Nó cũng có thể trùng phím tắt của app khác (ví dụ Raycast); phím ⌥, ⌘, ⌃ hay fn đứng một mình thì không trùng."
+            return "Khi bạn giữ tổ hợp này, nó không đến được app đang dùng. Nó cũng có thể trùng phím tắt của một app khác; phím ⌥, ⌘, ⌃ hay fn đứng một mình thì không trùng."
         }
         if spec == "mod:63" {
             return "Phím fn có thể mở Emoji hoặc Dictation của macOS. Tắt trong System Settings, Keyboard nếu bị vướng."
@@ -62,7 +62,7 @@ struct HoldKeyRecognizer {
     private static let fnFlag: UInt = 0x800000
 
     /// key code -> (device flag, label) for the modifier keys that can be a dictation key on their own.
-    private static let modifierKeys: [Int: (mask: UInt, label: String)] = [
+    static let modifierKeys: [Int: (mask: UInt, label: String)] = [
         61: (0x40, "⌥ phải"), 58: (0x20, "⌥ trái"), 54: (0x10, "⌘ phải"), 55: (0x8, "⌘ trái"),
         62: (0x2000, "⌃ phải"), 59: (0x1, "⌃ trái"), 60: (0x4, "⇧ phải"), 56: (0x2, "⇧ trái"), 63: (fnFlag, "fn"),
     ]
@@ -136,12 +136,24 @@ struct HoldKeyRecognizer {
 
 /// Listens, while the person is choosing, for the key or combination they press, and hands it to `onCommit`. It takes the
 /// keys over (nothing reaches the window) until it is done, so choosing ⌘W does not close it.
+///
+/// Letters and function keys arrive as events. A modifier on its own (⌥ phải, ⌘ trái, fn) does not: macOS does not hand
+/// those to a window's event monitor reliably, so the modifier state is read from the system a few dozen times a second
+/// instead. That also debounces: a press is only seen if it lasts a sample, and nothing counts in the first moments, nor
+/// anything that was already held when choosing began (the click, a previous key).
 @MainActor
 final class HoldKeyCapture: ObservableObject {
     @Published private(set) var listening = false
     @Published private(set) var message: String?
 
+    /// Seconds after choosing begins in which presses are ignored, so the click and a still-held key settle first.
+    static let settle: TimeInterval = 0.25
+    private static let sampleEvery: TimeInterval = 0.015
+
     private var monitor: Any?
+    private var sampler: Timer?
+    private var lastFlags: UInt = 0
+    private var armedAt = Date.distantFuture
     private var recognizer = HoldKeyRecognizer()
     private var onCommit: (HoldKey) -> Void = { _ in }
     private var onActive: (Bool) -> Void = { _ in }
@@ -157,24 +169,47 @@ final class HoldKeyCapture: ObservableObject {
         recognizer = HoldKeyRecognizer()
         message = nil
         listening = true
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [weak self] event in
+        lastFlags = Self.systemFlags()
+        armedAt = Date().addingTimeInterval(Self.settle)
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
             guard let self else { return event }
-            let input = KeyInput(
-                kind: event.type == .keyDown ? .down : .flags,
-                keyCode: Int(event.keyCode),
-                flags: event.modifierFlags.rawValue,
-                characters: event.charactersIgnoringModifiers ?? "")
-            self.handle(self.recognizer.feed(input))
+            guard Date() >= self.armedAt else { return nil }  // still settling: taken, not counted
+            let input = KeyInput(kind: .down, keyCode: Int(event.keyCode), flags: event.modifierFlags.rawValue,
+                                 characters: event.charactersIgnoringModifiers ?? "")
+            let outcome = self.recognizer.feed(input)
+            self.handle(outcome)
             return nil  // everything is taken while choosing
         }
+        let timer = Timer(timeInterval: Self.sampleEvery, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.sample() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        sampler = timer
     }
 
     func stop() {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
+        sampler?.invalidate()
+        sampler = nil
         let wasListening = listening
         listening = false
         if wasListening { onActive(false) }
+    }
+
+    private static func systemFlags() -> UInt { UInt(CGEventSource.flagsState(.combinedSessionState).rawValue) }
+
+    /// One look at the modifier keys: each one that went down or up since the last look is an event for the recogniser.
+    private func sample() {
+        let now = Self.systemFlags()
+        let changed = now ^ lastFlags
+        lastFlags = now
+        guard changed != 0, Date() >= armedAt else { return }
+        for (code, key) in HoldKeyRecognizer.modifierKeys.sorted(by: { $0.key < $1.key }) where changed & key.mask != 0 {
+            let outcome = recognizer.feed(KeyInput(kind: .flags, keyCode: code, flags: now, characters: ""))
+            handle(outcome)
+            if !listening { return }
+        }
     }
 
     private func handle(_ outcome: HoldKeyRecognizer.Outcome) {

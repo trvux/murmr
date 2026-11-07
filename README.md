@@ -11,8 +11,6 @@ Hold a key, speak, release: your words appear in whatever app has focus. A free,
 dictation tool for macOS, built for **Vietnamese mixed with English**, written in Go.
 (The repo and the command are both called `murmr`.)
 
-Inspired by [Wispr Flow](https://wisprflow.ai). Not affiliated with it.
-
 ```
 hold RIGHT Option -> microphone (16 kHz)
    -> whisper-server (local, model stays loaded, Metal)  -> raw text
@@ -59,7 +57,7 @@ After that it opens like any other app, and a short welcome window walks through
   hints for the LLM.
 - **Your own way of addressing**: the recognizer flattens "tao" into "tôi" and "mày" into "bạn". You define how you
   speak ("tao / mày / tụi tao", "tôi / bạn", "mình / cậu", "anh / em"...) and where it applies: by default, per app, or
-  per window title (e.g. a tab ending in "- Gmail"). Out of the box nothing is assumed: pronouns are left as recognised.
+  per window title (e.g. a title containing "Family"). Out of the box nothing is assumed: pronouns are left as recognised.
 - **Pronunciation practice** (`drill`): phoneme-level feedback, optionally replayed in your own voice.
 
 ## Status

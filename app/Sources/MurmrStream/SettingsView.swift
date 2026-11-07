@@ -502,8 +502,11 @@ struct HoldKeyField: View {
 
     var body: some View {
         HStack(spacing: Theme.Space.m) {
-            if !state.holdKey.isStandard && !capture.listening {
-                Button("Đặt lại") { state.setHoldKey(.standard) }
+            if !state.holdKey.isStandard || capture.listening {
+                Button("Đặt lại") {
+                    capture.stop()
+                    state.setHoldKey(.standard)
+                }
                     .buttonStyle(.plain)
                     .font(Theme.Typeface.caption)
                     .foregroundStyle(Theme.inkMuted)

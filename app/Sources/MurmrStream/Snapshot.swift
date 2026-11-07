@@ -397,6 +397,10 @@ enum Snapshot {
             check("the engine accepts every key spec the app can produce", engineAgrees.allSatisfy { $0 == true })
             check("the engine refuses a spec that is not a key", EngineCLI.runSync(["holdkey", "mod:12"])?.status != 0)
         }
+        check("no key note names another company's app",
+              [HoldKey.standard, HoldKey(spec: "mod:55", label: "x"), HoldKey(spec: "mod:63", label: "x"), HoldKey(spec: "combo:49:c0000", label: "x")]
+                .compactMap(\.note).allSatisfy { !$0.lowercased().contains("raycast") })
+        check("choosing ignores the first moments, so the click that began it cannot be taken as the key", HoldKeyCapture.settle >= 0.2)
         check("every key has a note or none, never an empty one", [HoldKey.standard, HoldKey(spec: "mod:55", label: "⌘ trái"), HoldKey(spec: "combo:49:c0000", label: "x")].allSatisfy { $0.note?.isEmpty != true })
 
         // --- Keychain wrapper on a throw-away service

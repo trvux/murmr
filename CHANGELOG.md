@@ -43,6 +43,9 @@ The first public build.
 - Optional pronunciation practice from the terminal (`murmr drill`, `murmr score`).
 
 ### Fixed
+- Choosing the dictation key: a modifier pressed on its own (right Option, left Command, fn) was not noticed, so the
+  box stayed on "Nhấn phím…". Modifiers are now read from the system, presses in the first moments are ignored, and
+  "Đặt lại" is there while choosing too.
 - A `whisper-server` could be left running (about 700 MB) after the app was closed abruptly. It now shuts down
   with the app, and a leftover is cleaned up on the next start.
 - The app froze for several seconds on start while macOS checked a new build's access to the Keychain.
