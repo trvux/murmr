@@ -211,21 +211,26 @@ struct FlockWave: View {
     }
 
     /// Five lines, the first the main one. Different beat counts and speeds, some running the other way, and different
-    /// starting points, so they weave. Fewer is calmer, more is busier: four to six read well at the pill's height.
+    /// starting points, so they weave. Thickness is not simply "thinner as they fade": a thick line can be dim (a soft
+    /// shadow behind) and a hairline can be bright (a glint in front), so the lines sit at different depths. Fewer lines
+    /// are calmer, more are busier: four to six read well at the pill's height.
     static let layers: [Layer] = [
-        Layer(arches: 4.4, speed: 2.6, opacity: 1.0, lineWidth: 1.7, share: 1.0, offset: 0),
-        Layer(arches: 3.2, speed: -3.4, opacity: 0.6, lineWidth: 1.4, share: 0.82, offset: 1.3),
-        Layer(arches: 5.6, speed: 4.2, opacity: 0.44, lineWidth: 1.2, share: 0.66, offset: 2.4),
-        Layer(arches: 3.9, speed: -2.1, opacity: 0.32, lineWidth: 1.0, share: 0.52, offset: 4.1),
-        Layer(arches: 6.4, speed: 3.3, opacity: 0.22, lineWidth: 0.9, share: 0.4, offset: 5.2),
+        Layer(arches: 4.4, speed: 2.6, opacity: 1.0, lineWidth: 2.0, share: 1.0, offset: 0),
+        Layer(arches: 3.2, speed: -3.4, opacity: 0.55, lineWidth: 0.7, share: 0.82, offset: 1.3),
+        Layer(arches: 5.6, speed: 4.2, opacity: 0.4, lineWidth: 1.6, share: 0.66, offset: 2.4),
+        Layer(arches: 3.9, speed: -2.1, opacity: 0.75, lineWidth: 0.6, share: 0.52, offset: 4.1),
+        Layer(arches: 6.4, speed: 3.3, opacity: 0.3, lineWidth: 1.2, share: 0.4, offset: 5.2),
     ]
 
     /// One layer's line at time `t`. Pure, so it can be checked without a window. Short typed steps on purpose: the older
     /// Swift compiler on GitHub's runner gives up on long mixed expressions.
     static func path(layer: Layer, level: CGFloat, size: CGSize, t: Double) -> Path {
         let midY: Double = Double(size.height) / 2
-        let limit: Double = midY - 1.5  // the most a point may move from the middle and still stay inside the frame
-        let amplitude: Double = 1.2 + pow(Double(level), 0.6) * (limit - 1.2)
+        let limit: Double = midY - 1.1  // the most a point may move from the middle and still stay inside the frame
+        // Ordinary speech measures about 0.25 to 0.4 (see levelGain in events.go), so a straight mapping used only half the
+        // room. The level is boosted so that ordinary speech reaches most of the swing and loud speech all of it.
+        let drive: Double = min(1, Double(level) * 2.4)
+        let amplitude: Double = 1.2 + pow(drive, 0.65) * (limit - 1.2)
         let steps: Int = max(2, Int(size.width / 2))
         var path = Path()
         for s in 0...steps {

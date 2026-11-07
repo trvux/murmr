@@ -842,9 +842,9 @@ struct WaveStripArt: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             row("im lặng", 0.02, height: 12)
-            row("nói nhỏ", 0.35, height: 12)
+            row("nói thường", 0.3, height: 12)
             row("nói to", 0.9, height: 12)
-            row("to (tile)", 0.9, height: 24)
+            row("to (tile)", 0.3, height: 24)
         }
         .padding(16)
         .background(Theme.paper)
