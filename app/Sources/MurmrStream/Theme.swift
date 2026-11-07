@@ -828,8 +828,18 @@ struct MascotNote: View {
 /// The flock line at silence, soft and loud on black, at the pill's real height (12 pt) and the settings tile's (24 pt),
 /// with the frame outlined so a stroke cut off by it shows. Rendered by `MurmrStream --wave-strip`.
 struct WaveStripArt: View {
+    /// 44 samples (about two seconds) of made-up speech at a given loudness. Written step by step: the one-line form was
+    /// too much for the older Swift compiler on GitHub's runner to type-check.
     private func history(_ base: CGFloat) -> [CGFloat] {
-        (0..<44).map { i in max(0, min(1, base * (0.55 + 0.45 * abs(sin(CGFloat(i) * 0.55))) + 0.05 * base * sin(CGFloat(i) * 2.3))) }
+        var out: [CGFloat] = []
+        for i in 0..<44 {
+            let x = CGFloat(i)
+            let swell: CGFloat = 0.55 + 0.45 * abs(sin(x * 0.55))
+            let wobble: CGFloat = 0.05 * base * sin(x * 2.3)
+            let value: CGFloat = base * swell + wobble
+            out.append(max(0, min(1, value)))
+        }
+        return out
     }
 
     private func row(_ label: String, _ base: CGFloat, height: CGFloat) -> some View {

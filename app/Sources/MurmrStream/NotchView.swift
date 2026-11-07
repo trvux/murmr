@@ -203,36 +203,52 @@ struct FlockWave: View {
 
     /// The line for the last `levels`, at time `t`, drawn into `size`. Pure, so it can be checked without a window.
     static func path(levels: [CGFloat], size: CGSize, line: CGFloat, t: Double) -> Path {
-        let beats = max(6, min(24, Int(size.width / 15)))
-        let step = max(1, levels.count / beats)
-        let span = size.width / CGFloat(beats)
-        let margin = line / 2 + 0.5
+        // Every value is typed and every step is small: the older Swift compiler on GitHub's runner gives up on long
+        // mixed CGFloat/Double expressions.
+        let beats: Int = max(6, min(24, Int(size.width / 15)))
+        let step: Int = max(1, levels.count / beats)
+        let span: CGFloat = size.width / CGFloat(beats)
+        let margin: CGFloat = line / 2 + 0.5
+        let height: CGFloat = size.height
+
         func level(_ j: Int) -> CGFloat {  // joint j sits between beat j - 1 and j; the newest sample is on the right
-            let i = max(0, min(levels.count - 1, levels.count - 1 - (beats - j) * step))
-            let v = levels.isEmpty ? 0 : pow(levels[i], 0.7)
-            let shimmer = 0.78 + 0.22 * sin(t * 7 + Double(j) * 0.9)  // a ripple running along the line
-            return min(1, v * CGFloat(shimmer))
+            let back: Int = (beats - j) * step
+            let i: Int = max(0, min(levels.count - 1, levels.count - 1 - back))
+            let raw: CGFloat = levels.isEmpty ? 0 : levels[i]
+            let v: CGFloat = pow(raw, 0.7)
+            let phase: Double = t * 7 + Double(j) * 0.9
+            let shimmer: CGFloat = CGFloat(0.78 + 0.22 * sin(phase))  // a ripple running along the line
+            return min(1, v * shimmer)
         }
-        func clamp(_ y: CGFloat) -> CGFloat { min(max(y, margin), size.height - margin) }
-        let mid = size.height / 2
-        let lift = size.height * 0.3
-        let joints = (0...beats).map { j in clamp(mid + size.height * 0.12 - level(j) * lift) }
+        func clamp(_ y: CGFloat) -> CGFloat { min(max(y, margin), height - margin) }
+
+        let base: CGFloat = height / 2 + height * 0.12
+        let lift: CGFloat = height * 0.3
+        var joints: [CGFloat] = []
+        for j in 0...beats { joints.append(clamp(base - level(j) * lift)) }
 
         var p = Path()
         p.move(to: CGPoint(x: 0, y: joints[0]))
         for k in 0..<beats {
-            let amp = min(1, 0.12 + (level(k) + level(k + 1)) * 0.55)
-            let x0 = CGFloat(k) * span, x1 = x0 + span, xm = x0 + span / 2
-            let y0 = joints[k], y1 = joints[k + 1]
-            let dip = clamp((y0 + y1) / 2 + span * 0.12 * amp)
+            let both: CGFloat = level(k) + level(k + 1)
+            let amp: CGFloat = min(1, 0.12 + both * 0.55)
+            let x0: CGFloat = CGFloat(k) * span
+            let x1: CGFloat = x0 + span
+            let xm: CGFloat = x0 + span / 2
+            let y0: CGFloat = joints[k]
+            let y1: CGFloat = joints[k + 1]
+            let dipY: CGFloat = clamp((y0 + y1) / 2 + span * 0.12 * amp)
             // the arm rises into an arch before it falls into the point, as in the logo
-            func arch(_ from: CGFloat, _ cx: CGFloat) -> CGFloat {
-                let wanted = (from + dip) / 2 - span * 0.34 * amp
-                let top = (from + 2 * wanted + dip) / 4  // where the curve actually peaks
-                return top < margin ? (4 * margin - from - dip) / 2 : wanted
+            func arch(_ from: CGFloat) -> CGFloat {
+                let wanted: CGFloat = (from + dipY) / 2 - span * 0.34 * amp
+                let top: CGFloat = (from + 2 * wanted + dipY) / 4  // where the curve actually peaks
+                if top < margin { return (4 * margin - from - dipY) / 2 }
+                return wanted
             }
-            p.addQuadCurve(to: CGPoint(x: xm, y: dip), control: CGPoint(x: x0 + span * 0.25, y: arch(y0, x0)))
-            p.addQuadCurve(to: CGPoint(x: x1, y: y1), control: CGPoint(x: x0 + span * 0.75, y: arch(y1, x1)))
+            let c0 = CGPoint(x: x0 + span * 0.25, y: arch(y0))
+            let c1 = CGPoint(x: x0 + span * 0.75, y: arch(y1))
+            p.addQuadCurve(to: CGPoint(x: xm, y: dipY), control: c0)
+            p.addQuadCurve(to: CGPoint(x: x1, y: y1), control: c1)
         }
         return p
     }
@@ -243,15 +259,14 @@ struct FlockWave: View {
             Canvas { gc, size in
                 let line: CGFloat = 1.7
                 let path = Self.path(levels: levels, size: size, line: line, t: t)
-                let shading = GraphicsContext.Shading.linearGradient(
-                    Gradient(stops: [
-                        .init(color: Theme.pillInk.opacity(0.1), location: 0),
-                        .init(color: Theme.pillInk.opacity(0.95), location: 0.72),
-                        .init(color: Theme.pillInk, location: 0.86),
-                        .init(color: Theme.pillAccent, location: 0.9),
-                        .init(color: Theme.pillAccent, location: 1),
-                    ]),
-                    startPoint: .zero, endPoint: CGPoint(x: size.width, y: 0))
+                let stops: [Gradient.Stop] = [
+                    Gradient.Stop(color: Theme.pillInk.opacity(0.1), location: 0),
+                    Gradient.Stop(color: Theme.pillInk.opacity(0.95), location: 0.72),
+                    Gradient.Stop(color: Theme.pillInk, location: 0.86),
+                    Gradient.Stop(color: Theme.pillAccent, location: 0.9),
+                    Gradient.Stop(color: Theme.pillAccent, location: 1),
+                ]
+                let shading = GraphicsContext.Shading.linearGradient(Gradient(stops: stops), startPoint: .zero, endPoint: CGPoint(x: size.width, y: 0))
                 gc.stroke(path, with: shading, style: StrokeStyle(lineWidth: line, lineCap: .round, lineJoin: .round))
             }
         }

@@ -11,6 +11,9 @@ Go engine at the repo root, Swift/SwiftUI app shell in `app/`.
   resets them every time.
 - `bundle.sh` needs `app/vendor/whisper-server`; if missing it runs `app/scripts/build-whisper.sh` (needs cmake).
   Never copy Homebrew's whisper-server into the app: dynamic libraries and macOS-27-only.
+- GitHub's runner has an older Swift compiler than a developer Mac. Long mixed CGFloat/Double expressions that build
+  locally fail there with "unable to type-check this expression in reasonable time", so write drawing maths as short typed
+  steps (`let x: CGFloat = ...`). CI is where this shows up; a green local build does not prove it.
 - Quit the running app before opening a new build (`open` on a running app only focuses the old one).
 
 ## UI work: brand first, code second
