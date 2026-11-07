@@ -27,7 +27,7 @@ The first public build.
 - `whisper-server` is built into the app, and the two speech models (574 MB in total) download on first launch,
   resumable and checked against a fixed checksum. Nothing to install first.
 - An app icon (a murmuration: a flock of small birds, one in clay) and an installer window that shows where to drag the
-  app and how to open it the first time.
+  app and what the first-launch "Open Anyway" row in System Settings looks like.
 - A welcome window on first launch, with the mascot (a plump bird from the flock): what the app does, the three
   macOS permissions (each with its status and a button), the model download with its progress, and how to use it.
   It can be reopened from the menu ("Hướng dẫn ban đầu…").

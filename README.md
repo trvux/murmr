@@ -24,8 +24,19 @@ hold RIGHT Option -> microphone (16 kHz)
 
 Get the latest build from the [Releases page](https://github.com/trvux/murmr/releases): open the `.dmg`, drag
 **Murmr Stream** into Applications. Every version has its own page with notes of what changed (they come from
-[CHANGELOG.md](CHANGELOG.md)) and a checksum. The first launch needs an extra step because the app is not notarized
-by Apple yet; the release page explains it. Needs Apple Silicon and macOS 14 or later (built for 14; tested on macOS 15 and later, there is no Mac on 14 to try it on).
+[CHANGELOG.md](CHANGELOG.md)) and a checksum. Needs Apple Silicon and macOS 14 or later (built for 14; tested on
+macOS 15 and later, there is no Mac on 14 to try it on).
+
+**The first time you open it, macOS blocks it**, because the app is not notarized by Apple (that costs a yearly fee
+that this free project does not pay yet). It is a one-time step:
+
+1. Open the app once and dismiss the warning ("Done").
+2. Open **System Settings → Privacy & Security** and scroll down to **Security**.
+3. Click **Open Anyway** next to "Murmr Stream was blocked", and confirm with your password or Touch ID.
+
+![The Open Anyway row in System Settings](docs/open-anyway.png)
+
+After that it opens like any other app, and a short welcome window walks through the permissions.
 
 ## What it does
 

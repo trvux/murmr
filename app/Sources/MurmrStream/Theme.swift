@@ -530,11 +530,31 @@ struct DmgBackgroundArt: View {
                     .foregroundStyle(Theme.ink)
                     .padding(.top, 38)
                 Spacer()
-                Text("Lần đầu mở bị chặn? Đó là vì app chưa được Apple công chứng.\nBấm ⌘ Space, gõ Privacy & Security, rồi bấm Open Anyway.")
-                    .font(.system(size: 12))
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(Theme.inkMuted)
-                    .padding(.bottom, 30)
+                VStack(spacing: 10) {
+                    Text("Lần đầu mở bị chặn? Vào System Settings → Privacy & Security, kéo xuống mục Security, rồi bấm:")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.inkMuted)
+                    // what that row looks like in macOS, so it is recognised when it appears
+                    HStack {
+                        Text("“Murmr Stream” was blocked to protect your Mac.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Theme.ink)
+                        Spacer()
+                        Text("Open Anyway")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.ink)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 5)
+                            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Theme.paperSunken))
+                            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Theme.signal, lineWidth: 1.5))
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9)
+                    .frame(width: 480)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.paperRaised))
+                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.rule))
+                }
+                .padding(.bottom, 22)
             }
             // a thin arrow from where the app sits (x 180) to where Applications sits (x 480), on the icons' centre line
             Path { p in
@@ -619,9 +639,10 @@ struct Mascot: View {
     }
 
     @ViewBuilder private func beak(_ u: CGFloat) -> some View {
-        if mood == .speaking {
-            Poly(points: [(43, 54), (57, 54), (50, 60)]).fill(Theme.signal).frame(width: size, height: size)
-            Poly(points: [(44, 66), (56, 66), (50, 61)]).fill(Theme.signal).frame(width: size, height: size)
+        if mood == .speaking {  // open: the upper beak, a dark mouth, a small lower beak
+            Ellipse().fill(Theme.mascotPupil).frame(width: 12 * u, height: 8 * u).offset(x: 44 * u, y: 59.5 * u)
+            Poly(points: [(43, 52), (57, 52), (50, 59)]).fill(Theme.signal).frame(width: size, height: size)
+            Capsule().fill(Theme.signal).frame(width: 11 * u, height: 3.2 * u).offset(x: 44.5 * u, y: 66.5 * u)
         } else {
             Poly(points: [(43, 53), (57, 53), (50, 63)]).fill(Theme.signal).frame(width: size, height: size)
         }
@@ -635,10 +656,10 @@ struct Mascot: View {
                     p.addArc(center: CGPoint(x: 30 * u, y: 42 * u), radius: CGFloat(30 + i * 9) * u, startAngle: .degrees(158), endAngle: .degrees(202), clockwise: false)
                 }.stroke(Theme.signal, style: StrokeStyle(lineWidth: 3 * u, lineCap: .round)).opacity(1 - Double(i) * 0.45)
             }
-        case .speaking:  // sound leaving to the right
+        case .speaking:  // sound leaving to the right, outside the body (the mirror of "listening")
             ForEach(0..<2) { i in
                 Path { p in
-                    p.addArc(center: CGPoint(x: 60 * u, y: 60 * u), radius: CGFloat(14 + i * 9) * u, startAngle: .degrees(-38), endAngle: .degrees(38), clockwise: false)
+                    p.addArc(center: CGPoint(x: 70 * u, y: 42 * u), radius: CGFloat(30 + i * 9) * u, startAngle: .degrees(-22), endAngle: .degrees(22), clockwise: false)
                 }.stroke(Theme.signal, style: StrokeStyle(lineWidth: 3 * u, lineCap: .round)).opacity(1 - Double(i) * 0.45)
             }
         case .oops:  // a drop of worry

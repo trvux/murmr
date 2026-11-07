@@ -4,9 +4,11 @@
 ## Cài đặt / Install
 
 1. Tải file `.dmg` ở mục **Assets** bên dưới, mở nó, kéo **Murmr Stream** vào **Applications**.
-2. Lần đầu mở, macOS sẽ báo không xác minh được nhà phát triển (app chưa được Apple công chứng).
-   Cách mở: vào **System Settings → Privacy & Security**, kéo xuống, bấm **Open Anyway** cho Murmr Stream.
-   (Trên macOS 14 cũng có thể bấm chuột phải vào app, chọn **Open**.)
+2. Lần đầu mở, macOS sẽ báo không xác minh được nhà phát triển (app chưa được Apple công chứng). Bấm **Done**, rồi
+   vào **System Settings → Privacy & Security**, kéo xuống mục **Security**, bấm **Open Anyway** cạnh dòng
+   "Murmr Stream was blocked" và xác nhận bằng mật khẩu. (Trên macOS 14 cũng có thể bấm chuột phải vào app, chọn **Open**.)
+
+   ![Open Anyway](https://raw.githubusercontent.com/trvux/murmr/main/docs/open-anyway.png)
 3. Cấp các quyền khi macOS hỏi: Microphone, Input Monitoring, Accessibility.
 4. Lần mở đầu app tải hai model giọng nói (574 MB), cần mạng một lần.
 
