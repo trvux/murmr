@@ -77,6 +77,7 @@ final class EngineController {
 
         var env = ProcessInfo.processInfo.environment
         env.merge(EnvFile.load(NSHomeDirectory() + "/.config/murmr/env")) { _, new in new }
+        env.merge(AISettings.engineEnvironment()) { _, new in new }  // keys saved in the Keychain win over the old env file
         env["MURMR_EVENTS"] = "1"
         // A GUI app does not inherit the shell PATH; whisper-server lives in Homebrew's bin.
         env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + (env["PATH"] ?? "/usr/bin:/bin")

@@ -14,9 +14,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         UserDefaults.standard.register(defaults: ["notchEars": true, "waveStyle": WaveStyle.line.rawValue])
+        state.restartHandler = { [weak self] in self?.engine.restart() }
         panel = NotchPanel(state: state)
         panel.orderFrontRegardless()
         buildMenu()
+        buildMainMenu()
 
         state.$phase
             .sink { [weak self] phase in
@@ -59,6 +61,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(item("Thoát", #selector(quit), key: "q"))
 
         statusItem.menu = menu
+    }
+
+    /// An accessory app has no menu bar of its own, so Cmd+V, Cmd+C and friends have no menu item to reach
+    /// and text fields cannot paste. A main menu with a standard Edit menu fixes that; it is never shown.
+    private func buildMainMenu() {
+        let main = NSMenu()
+        let appItem = NSMenuItem()
+        main.addItem(appItem)
+        let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "Ẩn cửa sổ", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        appItem.submenu = appMenu
+
+        let editItem = NSMenuItem()
+        main.addItem(editItem)
+        let edit = NSMenu(title: "Sửa")
+        edit.addItem(withTitle: "Hoàn tác", action: Selector(("undo:")), keyEquivalent: "z")
+        edit.addItem(withTitle: "Làm lại", action: Selector(("redo:")), keyEquivalent: "Z")
+        edit.addItem(.separator())
+        edit.addItem(withTitle: "Cắt", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: "Sao chép", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: "Dán", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: "Chọn tất cả", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editItem.submenu = edit
+        NSApp.mainMenu = main
     }
 
     private func item(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {

@@ -83,11 +83,18 @@ open "app/build/Murmr Stream.app"
 - **Permissions.** The app asks for Microphone, Input Monitoring (the Option key) and Accessibility
   (pasting). With ad-hoc signing macOS forgets them on every rebuild; to keep them, create a self-signed
   code-signing certificate in your keychain and build with `MURMR_SIGN_ID="<its name>" app/scripts/bundle.sh`.
-- **Settings** (menu bar icon, "Cài đặt…"): **Từ điển** edits `dictionary.txt` (terms, hard fixes, and the
-  pairs learned from your history, which you can drop) without touching the file's comments; **Giao diện**
-  chooses the wave style (five, shown side by side) and the notch corner shape; **Chung** shows the engine
-  status. A thin bar at the foot of the sidebar shows engine startup progress (an estimate: the engine
-  reports each step, and loading Whisper is the long one). It is built to grow with more pages.
+- **Settings** (menu bar icon, "Cài đặt…"):
+  - **Từ điển** edits `dictionary.txt` (terms, hard fixes, and the pairs learned from your history, which you
+    can drop) without touching the file's comments.
+  - **Ứng dụng** chooses, per app, whether dictation uses casual `tao/mày` or neutral pronouns (or the
+    default), and lets you add window-title rules. It edits `apps.txt` for you and applies at once.
+  - **AI và khoá API** picks DeepSeek or Claude, stores the key in the **macOS Keychain**, tests it, lists the models your key can use so you pick one (newest first, older ones folded), and lists
+    exactly what is and is not sent. Changing keys or provider asks for an engine restart.
+  - **Giao diện** chooses the wave style (five, shown side by side) and the notch corner shape.
+  - **Chung** shows the engine status.
+
+  A thin bar at the foot of the sidebar shows engine startup progress (an estimate: the engine reports each
+  step, and loading Whisper is the long one).
 - **Logs** go to `~/Library/Logs/Murmr Stream/engine.log`. The dictated text is never written there.
 - Only one engine can run at a time (they share port 8178, the microphone and the key), so quit
   `./run.sh` before opening the app.
@@ -101,7 +108,7 @@ Not notarized yet, so a downloaded build will trigger macOS's unidentified-devel
 
 The look is a deliberate system, not defaults: read [DESIGN.md](DESIGN.md). All visual values live in
 `app/Sources/MurmrStream/Theme.swift`, `app/scripts/design-lint.sh` rejects raw values and banned patterns,
-and `MurmrStream --snapshot <appearance|general|pills> out.png [dark]` renders the UI offscreen to check it.
+and `MurmrStream --snapshot <dictionary|apps|ai|appearance|general|pills> out.png [dark]` renders the UI offscreen to check it.
 
 ## Commands
 
@@ -111,6 +118,8 @@ and `MurmrStream --snapshot <appearance|general|pills> out.png [dark]` renders t
 | `./murmr report` | recurring mishearings found in your history |
 | `./murmr forget "<heard text>"` | stop using a learned hint |
 | `./murmr hints` | the learned "heard => meant" pairs as JSON (what the Settings window shows) |
+| `./murmr models deepseek\|claude` | the models your key can use, as JSON (what the model picker shows) |
+| `./murmr styles` | the apps and their pronoun style as JSON (what the Ứng dụng page shows) |
 | `./murmr clean [--casual] "<text>"` | run only the cleanup step, to try prompt changes |
 | `./murmr drill` | read practice sentences, get phoneme-level feedback and a replay in your voice |
 | `./murmr progress` | weekly accuracy and which sound classes are hardest |
@@ -132,8 +141,11 @@ Get keys from [platform.deepseek.com](https://platform.deepseek.com) or
 check their pricing. Pick one with `MURMR_CLEANUP=deepseek|claude`, or `none` to use no API at all
 (you then get raw Whisper output).
 
-**Where to put keys.** In `~/.config/murmr/env`, outside the repository, with `chmod 600`.
-`run.sh` loads that file. Never put a key in the source tree or in a commit. If one leaks, revoke it
+**Where to put keys.** In the app, use Settings, "AI và khoá API": the key goes to the macOS Keychain
+(not synced to iCloud) and the app hands it to its own engine process. From the command line, put it in
+`~/.config/murmr/env`, outside the repository, with `chmod 600`; `run.sh` loads that file, and the app
+still reads it as a fallback (the page offers to move such a key into the Keychain). Never put a key in the
+source tree or in a commit. If one leaks, revoke it
 at the provider right away; deleting the commit is not enough.
 
 **What is sent with every dictation** (this is the full list):
@@ -146,7 +158,7 @@ at the provider right away; deleting the commit is not enough.
 **What is not sent:** audio, the focused app's name, window titles, your history file, or any
 other provider's key.
 
-If a request fails or takes longer than 8 seconds, the raw Whisper text is pasted instead, so
+If a request fails or takes longer than 8 seconds, the raw Whisper text is pasted instead (or, with `MURMR_FALLBACK=on` and both keys, the other service is tried first), so
 dictation never blocks on the network. If you point a fork at another provider, read that provider's
 data-retention terms first, because dictation text can contain private things.
 
@@ -158,7 +170,9 @@ Set in `~/.config/murmr/env` (all optional except a cleanup key if you want clea
 |---|---|---|
 | `DEEPSEEK_API_KEY`, `ANTHROPIC_API_KEY` | none | cleanup provider (DeepSeek preferred if both are set) |
 | `DEEPSEEK_MODEL` | `deepseek-flash` | DeepSeek model name |
+| `ANTHROPIC_MODEL` | `claude-haiku-4-5-20251001` | Claude model name |
 | `MURMR_CLEANUP` | auto | `deepseek`, `claude` or `none` |
+| `MURMR_FALLBACK` | off | `on`: if the chosen service fails or takes over 6 s, try the other one (needs both keys; sends the text there) |
 | `MURMR_MODEL` | `models/ggml-large-v3-turbo-q5_0.bin` | Whisper model path |
 | `MURMR_VAD` / `MURMR_VAD_MODEL` | on / `models/ggml-silero-v5.1.2.bin` | `MURMR_VAD=off` disables VAD |
 | `MURMR_HISTORY` | on | `off` stops writing `history.jsonl` |
@@ -182,8 +196,10 @@ attempt and the correct version back to back.
 - **The transcript text of each dictation is sent to the cleanup provider** (DeepSeek or Anthropic)
   unless you set `MURMR_CLEANUP=none`.
 - `~/.config/murmr/history.jsonl` stores raw and final text locally (no audio), mode `0600`.
-- Drill and voice features use your own recordings, kept on your machine. API keys are read from the
-  environment and are never part of this repository.
+- Drill and voice features use your own recordings, kept on your machine. API keys live in the Keychain
+  or in your own env file and are never part of this repository.
+- The author runs no server and receives nothing: no account, no telemetry. Details, and a draft of the
+  terms to be completed, are in [PRIVACY.md](PRIVACY.md).
 
 ## License
 

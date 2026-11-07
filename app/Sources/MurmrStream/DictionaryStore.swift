@@ -48,6 +48,8 @@ final class DictionaryStore: ObservableObject {
     @Published private(set) var entries: [DictEntry] = []
     @Published private(set) var needsRestart = false
     @Published var message: String?
+    /// Called after the file was written, so the page can ask for an engine restart.
+    var onSaved: () -> Void = {}
 
     var terms: [DictEntry] { entries.filter { if case .term = $0.kind { return true } else { return false } } }
     var fixes: [DictEntry] { entries.filter { if case .fix = $0.kind { return true } else { return false } } }
@@ -55,8 +57,6 @@ final class DictionaryStore: ObservableObject {
     func load() {
         let text = (try? String(contentsOfFile: DictFile.path, encoding: .utf8)) ?? ""
         entries = DictFile.parse(text)
-        // Development hook: show the "restart needed" bar in an offscreen snapshot.
-        if ProcessInfo.processInfo.environment["MURMR_SNAPSHOT_PENDING"] == "1" { needsRestart = true }
     }
 
     func addTerm(_ raw: String) -> Bool {
@@ -106,6 +106,7 @@ final class DictionaryStore: ObservableObject {
             try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
             try DictFile.serialize(entries).write(toFile: DictFile.path, atomically: true, encoding: .utf8)
             needsRestart = true
+            onSaved()
         } catch {
             message = "Không lưu được từ điển: \(error.localizedDescription)"
         }
@@ -130,8 +131,8 @@ final class HintsStore: ObservableObject {
 
     func refresh() {
         Task {
-            let output = await Self.run(["hints"])
-            if let data = output?.data(using: .utf8), let decoded = try? JSONDecoder().decode([Hint].self, from: data) {
+            let output = await EngineCLI.run(["hints"])
+            if let data = output?.out.data(using: .utf8), let decoded = try? JSONDecoder().decode([Hint].self, from: data) {
                 hints = decoded
             }
             loaded = true
@@ -140,25 +141,8 @@ final class HintsStore: ObservableObject {
 
     func forget(_ hint: Hint) {
         Task {
-            _ = await Self.run(["forget", hint.from])
+            _ = await EngineCLI.run(["forget", hint.from])
             refresh()
         }
-    }
-
-    private nonisolated static func run(_ args: [String]) async -> String? {
-        await Task.detached { () -> String? in
-            guard let exe = EngineController.locateEngine() else { return nil }
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: exe)
-            p.arguments = args
-            p.currentDirectoryURL = URL(fileURLWithPath: EngineController.homeDirPath)
-            let out = Pipe()
-            p.standardOutput = out
-            p.standardError = Pipe()
-            do { try p.run() } catch { return nil }
-            let data = out.fileHandleForReading.readDataToEndOfFile()
-            p.waitUntilExit()
-            return String(data: data, encoding: .utf8)
-        }.value
     }
 }

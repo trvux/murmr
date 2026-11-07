@@ -4,6 +4,18 @@ import AppKit
 // run() blocks, so `delegate` stays alive for the whole session (NSApplication only holds it weakly).
 MainActor.assumeIsolated {
     let app = NSApplication.shared
+    if CommandLine.arguments.contains("--models-check") {
+        Snapshot.modelsCheck()
+        return
+    }
+    if CommandLine.arguments.contains("--keychain-selftest") {
+        Snapshot.keychainSelfTest()
+        return
+    }
+    if CommandLine.arguments.contains("--settings-selftest") {
+        Snapshot.settingsSelfTest()
+        return
+    }
     if CommandLine.arguments.contains("--dict-selftest") {
         Snapshot.dictSelfTest()
         return

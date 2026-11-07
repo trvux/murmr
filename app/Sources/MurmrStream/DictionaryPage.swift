@@ -5,6 +5,7 @@ import SwiftUI
 struct DictionaryPage: View {
     let actions: SettingsActions
 
+    @EnvironmentObject private var state: AppState
     @StateObject private var store = DictionaryStore()
     @StateObject private var hints = HintsStore()
     @State private var newTerm = ""
@@ -13,7 +14,6 @@ struct DictionaryPage: View {
 
     var body: some View {
         PageScaffold(title: "Từ điển", subtitle: "Tên người, thuật ngữ và những từ hay bị nghe sai. Thêm ở đây, không cần mở file.") {
-            if store.needsRestart { pendingBar }
             termsSection
             Hairline()
             fixesSection
@@ -21,6 +21,7 @@ struct DictionaryPage: View {
             learnedSection
         }
         .onAppear {
+            store.onSaved = { state.needsRestart = true }
             store.load()
             hints.refresh()
         }
@@ -28,26 +29,6 @@ struct DictionaryPage: View {
         .onChange(of: newTerm) { store.message = nil }
         .onChange(of: fixFrom) { store.message = nil }
         .onChange(of: fixTo) { store.message = nil }
-    }
-
-    // MARK: pending changes
-
-    private var pendingBar: some View {
-        HStack(spacing: Theme.Space.m) {
-            Circle().fill(Theme.signal).frame(width: 6, height: 6)
-            Text("Đã lưu. Engine đọc từ điển lúc khởi động, nên cần khởi động lại để dùng thay đổi.")
-                .font(Theme.Typeface.caption)
-                .foregroundStyle(Theme.ink)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: Theme.Space.m)
-            OutlineButton(title: "Áp dụng ngay", symbol: "arrow.clockwise") {
-                actions.restartEngine()
-                store.markApplied()
-            }
-        }
-        .padding(Theme.Space.m)
-        .background(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).fill(Theme.paperRaised))
-        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.rule))
     }
 
     // MARK: terms

@@ -11,6 +11,8 @@ struct SettingsActions {
 
 enum SettingsTab: String, CaseIterable, Identifiable {
     case dictionary
+    case apps
+    case ai
     case appearance
     case general
 
@@ -19,6 +21,8 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .dictionary: return "Từ điển"
+        case .apps: return "Ứng dụng"
+        case .ai: return "AI và khoá API"
         case .appearance: return "Giao diện"
         case .general: return "Chung"
         }
@@ -27,6 +31,8 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .dictionary: return "book"
+        case .apps: return "square.grid.2x2"
+        case .ai: return "key"
         case .appearance: return "waveform"
         case .general: return "slider.horizontal.3"
         }
@@ -49,6 +55,8 @@ struct SettingsView: View {
             Group {
                 switch tab {
                 case .dictionary: DictionaryPage(actions: actions)
+                case .apps: AppsPage()
+                case .ai: AIPage()
                 case .appearance: AppearancePage(actions: actions)
                 case .general: GeneralPage(state: state, actions: actions)
                 }
@@ -58,6 +66,7 @@ struct SettingsView: View {
         }
         .frame(minWidth: 840, minHeight: 640)
         .ignoresSafeArea()
+        .environmentObject(state)
     }
 }
 
@@ -155,7 +164,28 @@ struct NavItem: View {
 
 // MARK: - page chrome
 
+/// "Saved, but the engine reads this at startup": shown on every page while a restart is pending.
+struct RestartBar: View {
+    @EnvironmentObject private var state: AppState
+
+    var body: some View {
+        HStack(spacing: Theme.Space.m) {
+            Circle().fill(Theme.signal).frame(width: 6, height: 6)
+            Text("Đã lưu. Engine đọc phần này lúc khởi động, nên cần khởi động lại để dùng thay đổi.")
+                .font(Theme.Typeface.caption)
+                .foregroundStyle(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: Theme.Space.m)
+            OutlineButton(title: "Áp dụng ngay", symbol: "arrow.clockwise") { state.requestRestart() }
+        }
+        .padding(Theme.Space.m)
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).fill(Theme.paperRaised))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.rule))
+    }
+}
+
 struct PageScaffold<Content: View>: View {
+    @EnvironmentObject private var state: AppState
     let title: String
     let subtitle: String
     @ViewBuilder var content: () -> Content
@@ -170,6 +200,7 @@ struct PageScaffold<Content: View>: View {
                         .foregroundStyle(Theme.inkMuted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                if state.needsRestart { RestartBar() }
                 content()
             }
             .frame(maxWidth: 680, alignment: .leading)  // a reading measure, not the full window

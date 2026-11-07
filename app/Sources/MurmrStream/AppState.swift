@@ -23,6 +23,7 @@ struct EngineEvent: Decodable {
     var text: String?
     var reason: String?
     var msg: String?
+    var note: String?  // on "done": for example that the backup AI service answered
 }
 
 @MainActor
@@ -42,6 +43,11 @@ final class AppState: ObservableObject {
     @Published var loadProgress: Double = 0
 
     var isLoading: Bool { !loadStage.isEmpty }
+
+    /// Something the engine only reads at startup (dictionary, API keys...) changed. Cleared when it restarts.
+    @Published var needsRestart = false
+    var restartHandler: (() -> Void)?
+    func requestRestart() { restartHandler?() }
 
     private var loadTask: Task<Void, Never>?
     private var stageStartedAt = Date()
@@ -74,6 +80,13 @@ final class AppState: ObservableObject {
             setPhase(ev.stage == "cleanup" ? .cleaning : .transcribing)
         case "done":
             setPhase(.done(ev.text ?? ""), resetAfter: 2.2)
+            if let note = ev.note, !note.isEmpty {  // after the text has been shown, say what happened
+                Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(2.3))
+                    guard let self, self.phase == .idle else { return }
+                    self.setPhase(.notice(note), resetAfter: 3)
+                }
+            }
         case "skipped":
             setPhase(.notice(ev.reason == "silent" ? "Giữ phím hơi ngắn" : "Không nghe thấy gì"), resetAfter: 1.3)
         case "error":
@@ -97,6 +110,7 @@ final class AppState: ObservableObject {
 
     /// The engine process has just been (re)started.
     func beginLoading() {
+        needsRestart = false
         engineReady = false
         loadStage = "starting"
         loadProgress = 0

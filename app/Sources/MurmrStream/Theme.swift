@@ -240,7 +240,7 @@ struct InputField: View {
             .background(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).fill(Theme.paperRaised))
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
-                    .strokeBorder(focused ? Theme.signal : Theme.rule, lineWidth: focused ? 1.5 : 1)
+                    .strokeBorder(focused ? Theme.ink : Theme.rule, lineWidth: focused ? 1.5 : 1)
             )
             .animation(Theme.Motion.quick, value: focused)
     }
@@ -298,5 +298,82 @@ struct ProgressBar: View {
         .frame(height: Theme.Space.xs)
         .animation(Theme.Motion.quick, value: value)
         .accessibilityValue("\(Int(max(0, min(1, value)) * 100)) phần trăm")
+    }
+}
+
+/// Like `InputField`, but the text is hidden: for API keys.
+struct SecureInputField: View {
+    let placeholder: String
+    @Binding var text: String
+    var onSubmit: () -> Void = {}
+
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        SecureField(placeholder, text: $text)
+            .textFieldStyle(.plain)
+            .font(Theme.Typeface.mono)
+            .foregroundStyle(Theme.ink)
+            .focused($focused)
+            .onSubmit(onSubmit)
+            .padding(.horizontal, Theme.Space.m)
+            .padding(.vertical, Theme.Space.s)
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).fill(Theme.paperRaised))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
+                    .strokeBorder(focused ? Theme.ink : Theme.rule, lineWidth: focused ? 1.5 : 1)
+            )
+            .animation(Theme.Motion.quick, value: focused)
+    }
+}
+
+/// Choose one of a few options: the chosen one is solid ink, the rest are hairline outlines.
+struct SegmentedChoice<Value: Hashable>: View {
+    let options: [(value: Value, title: String)]
+    @Binding var selection: Value
+
+    var body: some View {
+        HStack(spacing: Theme.Space.xs) {
+            ForEach(Array(options.enumerated()), id: \.offset) { _, option in
+                let chosen = option.value == selection
+                Button {
+                    selection = option.value
+                } label: {
+                    Text(option.title)
+                        .font(chosen ? Theme.Typeface.bodyStrong : Theme.Typeface.body)
+                        .foregroundStyle(chosen ? Theme.paper : Theme.ink)
+                        .padding(.horizontal, Theme.Space.m)
+                        .padding(.vertical, Theme.Space.s)
+                        .background(
+                            RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                                .fill(chosen ? Theme.ink : Color.clear)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                                .strokeBorder(chosen ? Color.clear : Theme.rule)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .animation(Theme.Motion.quick, value: selection)
+    }
+}
+
+/// A text link in the accent colour, with an arrow that says it leaves the app.
+struct ExternalLink: View {
+    let title: String
+    let url: String
+
+    var body: some View {
+        if let destination = URL(string: url) {
+            Link(destination: destination) {
+                HStack(spacing: Theme.Space.xs) {
+                    Text(title).font(Theme.Typeface.caption)
+                    Image(systemName: "arrow.up.right").font(Theme.Typeface.label)
+                }
+                .foregroundStyle(Theme.signal)
+            }
+        }
     }
 }

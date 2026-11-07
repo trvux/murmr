@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Development tool: `MurmrStream --snapshot <appearance|general> <out.png> [dark]` draws the Settings
+/// Development tool: `MurmrStream --snapshot <dictionary|apps|ai|appearance|general|pills> <out.png> [dark]` draws the Settings
 /// window offscreen into a PNG, so the design can be checked without opening a window or needing
 /// the Screen Recording permission.
 @MainActor
@@ -18,6 +18,7 @@ enum Snapshot {
         let state = AppState()
         state.engineReady = true
         state.engineStatus = "Sẵn sàng · giữ Option phải để nói"
+        if ProcessInfo.processInfo.environment["MURMR_SNAPSHOT_PENDING"] == "1" { state.needsRestart = true }
         if ProcessInfo.processInfo.environment["MURMR_SNAPSHOT_LOADING"] == "1" {  // show the startup bar
             state.engineReady = false
             state.loadStage = "whisper"
@@ -141,6 +142,107 @@ enum Snapshot {
         let afterRemove = (try? String(contentsOfFile: tmp, encoding: .utf8)) ?? ""
         check("removing deletes only that line", afterRemove == "# note\n\nboot -> push\nKubernetes\npush request -> pull request\n")
         try? FileManager.default.removeItem(atPath: tmp)
+        print(allOK ? "ALL OK" : "FAILED")
+    }
+
+    /// Development check of the Apps rules file, the Keychain wrapper and key status, on temporary data only:
+    /// a temp rules file and a throw-away Keychain service. It prints whether keys exist, never the keys.
+    /// Development check: fetch each provider's model list with the stored key and print ids (never the key).
+    static func modelsCheck() {
+        let done = DispatchSemaphore(value: 0)
+        Task { @MainActor in
+            let settings = AISettings()
+            for provider in AIProvider.allCases {
+                await settings.loadModels(provider)
+                let list = settings.models[provider] ?? []
+                print("\(provider.rawValue): \(list.count) models, error: \(settings.modelErrors[provider] ?? "none")")
+                for m in list { print("  \(m.deprecated ? "old" : "new") \(m.id)  (\(m.name))") }
+            }
+            done.signal()
+        }
+        while done.wait(timeout: .now()) == .timedOut { RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.05)) }
+    }
+
+    /// Development check of the Keychain claims made in PRIVACY.md, on a throwaway item that is deleted at the end.
+    static func keychainSelfTest() {
+        let service = "dev.trvux.murmr-stream.selftest", account = "SELFTEST_KEY"
+        var allOK = true
+        func check(_ name: String, _ condition: Bool) {
+            print("\(condition ? "ok  " : "FAIL") \(name)")
+            if !condition { allOK = false }
+        }
+        KeychainStore.delete(account, service: service)
+        check("writes", KeychainStore.write("sk-test-123", account: account, service: service))
+        check("reads back", KeychainStore.read(account, service: service) == "sk-test-123")
+        check("updates in place", KeychainStore.write("sk-test-456", account: account, service: service)
+            && KeychainStore.read(account, service: service) == "sk-test-456")
+
+        let query: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: account,
+            kSecReturnAttributes: true, kSecMatchLimit: kSecMatchLimitOne,
+            kSecAttrSynchronizable: kSecAttrSynchronizableAny,  // also match a synced copy, if there were one
+        ]
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        let attrs = item as? [String: Any] ?? [:]
+        print("info raw attributes: synchronizable=\(attrs[kSecAttrSynchronizable as String] ?? "nil")")
+        check("attributes readable", status == errSecSuccess)
+        let sync = attrs[kSecAttrSynchronizable as String]
+        check("not synchronizable (not synced through iCloud)", sync == nil || (sync as? NSNumber)?.boolValue == false)
+
+        check("deletes", KeychainStore.delete(account, service: service) && KeychainStore.read(account, service: service) == nil)
+        print(allOK ? "ALL OK" : "SOME CHECKS FAILED")
+    }
+
+    static func settingsSelfTest() {
+        var allOK = true
+        func check(_ name: String, _ condition: Bool) {
+            print("\(condition ? "ok  " : "FAIL") \(name)")
+            if !condition { allOK = false }
+        }
+
+        // --- apps.txt: the same sample the engine's own test uses
+        let sample = "com.vng.zalo casual\ntitle:Team Chat neutral\nbogus line\n# note casual\n"
+        let parsed = AppsFile.parse(sample)
+        check("parses an app rule", parsed[0].kind == .app(bundle: "com.vng.zalo", style: .casual))
+        check("parses a title rule with a space", parsed[1].kind == .title(text: "Team Chat", style: .neutral))
+        check("a line that is not a rule is kept as it was", parsed[2].kind == .verbatim && parsed[2].line == "bogus line")
+        check("a comment ending in a style word is not a rule", parsed[3].kind == .verbatim)
+        check("round trip is byte-identical", AppsFile.serialize(parsed) == sample)
+
+        let tmp = NSTemporaryDirectory() + "murmr-apps-selftest.txt"
+        try? "# my rules\ncom.google.Chrome casual\n".write(toFile: tmp, atomically: true, encoding: .utf8)
+        AppsFile.overridePath = tmp
+        let store = AppsStore()
+        store.loadFile()
+        check("reads the user's rule", store.userStyle(for: "com.google.Chrome") == .casual)
+        store.setStyle(.neutral, for: "com.google.Chrome")
+        store.setStyle(.casual, for: "com.vng.zalo")
+        check("replaces and adds rules", store.userStyle(for: "com.google.Chrome") == .neutral && store.userStyle(for: "com.vng.zalo") == .casual)
+        check("adds a title rule", store.addTitleRule("- Gmail", style: .neutral))
+        check("rejects a duplicate title rule (any case)", !store.addTitleRule("- gmail", style: .casual))
+        store.setStyle(nil, for: "com.vng.zalo")
+        let written = (try? String(contentsOfFile: tmp, encoding: .utf8)) ?? ""
+        check("removing a rule deletes only that line, comment kept",
+              written == "# my rules\ncom.google.Chrome neutral\ntitle:- Gmail neutral\n")
+        try? FileManager.default.removeItem(atPath: tmp)
+        AppsFile.overridePath = nil
+
+        // --- Keychain wrapper on a throw-away service
+        let service = "dev.trvux.murmr-stream.selftest"
+        KeychainStore.delete("probe", service: service)
+        check("nothing stored before the test", KeychainStore.read("probe", service: service) == nil)
+        check("writes a secret", KeychainStore.write("sk-test-123456", account: "probe", service: service))
+        check("reads it back", KeychainStore.read("probe", service: service) == "sk-test-123456")
+        check("overwrites it", KeychainStore.write("sk-test-654321", account: "probe", service: service)
+              && KeychainStore.read("probe", service: service) == "sk-test-654321")
+        check("deletes it", KeychainStore.delete("probe", service: service) && KeychainStore.read("probe", service: service) == nil)
+        check("deleting a missing item is not an error", KeychainStore.delete("probe", service: service))
+
+        // --- key status (existence only)
+        for provider in AIProvider.allCases {
+            print("info \(provider.keyName): \(AISettings.status(for: provider))".replacingOccurrences(of: "last4: ", with: "last4: …"))
+        }
         print(allOK ? "ALL OK" : "FAILED")
     }
 }
