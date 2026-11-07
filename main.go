@@ -155,7 +155,7 @@ func daemon() {
 			go func() {
 				c := readAppCtx()
 				ch <- c
-				events.emit("app", "bundle", c.Bundle, "style", styleFor(c)) // never the title: it can hold an email address
+				events.emit("app", "bundle", c.Bundle, "style", LoadPronouns().For(c).Label()) // never the title: it can hold an email address
 			}()
 			appc = ch
 			events.emit("recording")
@@ -175,7 +175,7 @@ type job struct {
 func process(wh *Whisper, cleaner Cleaner, dict *Dictionary, j job) {
 	pcm := j.pcm
 	app := <-j.ctx
-	style := styleFor(app)
+	profile := LoadPronouns().For(app)
 	if isSilent(pcm) {
 		log.Printf("too short/silent, skipped (%.1fs, level %.4f)", float64(len(pcm))/sampleRate, rms(pcm))
 		events.emit("skipped", "reason", "silent")
@@ -214,9 +214,9 @@ func process(wh *Whisper, cleaner Cleaner, dict *Dictionary, j job) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		if nc, ok := cleaner.(noteCleaner); ok {
-			cleaned, note, err = nc.CleanNote(ctx, raw, stylePrompt(style))
+			cleaned, note, err = nc.CleanNote(ctx, raw, profile.Prompt())
 		} else {
-			cleaned, err = cleaner.Clean(ctx, raw, stylePrompt(style))
+			cleaned, err = cleaner.Clean(ctx, raw, profile.Prompt())
 		}
 		cancel()
 		if err != nil || cleaned == "" {
@@ -227,7 +227,7 @@ func process(wh *Whisper, cleaner Cleaner, dict *Dictionary, j job) {
 	}
 	text = dict.Apply(text)
 	log.Printf("stt %v, total %v, level %.4f, app %s [%s] (%s)\n  raw:   %s\n  final: %s",
-		tSTT.Round(time.Millisecond), time.Since(t0).Round(time.Millisecond), rms(pcm), app.Bundle, app.Title, style, raw, text)
+		tSTT.Round(time.Millisecond), time.Since(t0).Round(time.Millisecond), rms(pcm), app.Bundle, app.Title, profileLabel(profile), raw, text)
 
 	if os.Getenv("MURMR_HISTORY") != "off" {
 		e := Entry{Time: time.Now(), Raw: tr.Text, Final: text, Weak: tr.Weak, App: app.Bundle}

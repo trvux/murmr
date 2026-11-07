@@ -21,7 +21,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .dictionary: return "Từ điển"
-        case .apps: return "Ứng dụng"
+        case .apps: return "Xưng hô"
         case .ai: return "AI và khoá API"
         case .appearance: return "Giao diện"
         case .general: return "Chung"
@@ -31,7 +31,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .dictionary: return "book"
-        case .apps: return "square.grid.2x2"
+        case .apps: return "person.2"
         case .ai: return "key"
         case .appearance: return "waveform"
         case .general: return "slider.horizontal.3"

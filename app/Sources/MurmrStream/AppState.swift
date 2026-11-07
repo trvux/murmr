@@ -37,7 +37,7 @@ final class AppState: ObservableObject {
     @Published var level: CGFloat = 0  // smoothed microphone level, 0...1
     @Published var levels: [CGFloat] = Array(repeating: 0, count: AppState.historyCount)
     @Published var appIcon: NSImage?  // icon of the app the text will be pasted into
-    @Published var style = ""  // "casual", "neutral" or "" while unknown
+    @Published var style = ""  // the pronoun profile's label ("tao / mày") for the app being dictated into, or ""
     @Published var engineStatus = "Đang khởi động…"
     @Published var engineReady = false
     /// Startup progress: which step the engine reports, and an estimated 0...1 for the bar. The bar is an

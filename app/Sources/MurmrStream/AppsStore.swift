@@ -1,21 +1,74 @@
 import AppKit
 import Foundation
 
-/// How pronouns are written when dictating into an app (see style.go in the engine).
-enum PronounStyle: String, CaseIterable {
-    case casual  // tao / mày: talking to a computer or an AI
-    case neutral  // lịch sự: talking to people, the recognizer's pronouns are left alone
+/// A way of addressing: how you refer to yourself, to the listener and to your own group. The id is what apps.txt refers
+/// to. The app offers the mechanism and a few starting points; it never decides how anyone speaks (see style.go).
+struct PronounProfile: Identifiable, Equatable, Hashable {
+    static let keepID = "keep"
 
-    var title: String { self == .casual ? "tao/mày" : "lịch sự" }
+    var id: String
+    var selfWord: String
+    var you: String
+    var we: String
+
+    /// "tao / mày": what the notch and the menus show.
+    var label: String { [selfWord, you].filter { !$0.isEmpty }.joined(separator: " / ") }
+    /// "tao / mày / tụi tao": the whole set, for the list.
+    var detail: String { [selfWord, you, we].filter { !$0.isEmpty }.joined(separator: " / ") }
+
+    /// The apps.txt line that defines it. Trailing empty parts are left out.
+    var line: String {
+        var parts: [String] = [selfWord]
+        if !we.isEmpty { parts.append(contentsOf: [you, we]) } else if !you.isEmpty { parts.append(you) }
+        return "profile \(id) = " + parts.joined(separator: " / ")
+    }
+
+    /// Same rules as cleanWord in style.go: a short plain word, no quotes, slashes or line breaks.
+    static func clean(_ raw: String) -> String {
+        let banned: Set<Character> = ["\"", "'", "`", "“", "”", "/", "\\"]
+        var kept = ""
+        for ch in raw {
+            if banned.contains(ch) { continue }
+            kept.append(ch.isNewline || ch.unicodeScalars.allSatisfy({ $0.properties.generalCategory == .control }) ? " " : ch)
+        }
+        let words = kept.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        return String(words.prefix(24))
+    }
+
+    /// "tao-may" from "tao", "mày": ASCII, so the file stays easy to type and read.
+    static func slug(_ parts: [String]) -> String {
+        let folded = parts.joined(separator: " ")
+            .replacingOccurrences(of: "đ", with: "d").replacingOccurrences(of: "Đ", with: "d")
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "vi"))
+            .lowercased()
+        let words = folded.split(whereSeparator: { !($0.isLetter && $0.isASCII) && !$0.isNumber }).map(String.init)
+        return words.isEmpty ? "mine" : words.joined(separator: "-")
+    }
 }
 
-/// One line of ~/.config/murmr/apps.txt. Like the dictionary, the file is hand-written, so lines the app does
-/// not understand are kept exactly as they were.
+/// A starting point offered in Settings, from `murmr pronouns`. Nothing is applied until the user adds it.
+struct PronounPreset: Decodable, Identifiable, Equatable {
+    let label: String
+    let selfWord: String
+    let you: String
+    let we: String
+    var id: String { label }
+
+    enum CodingKeys: String, CodingKey {
+        case label, you, we
+        case selfWord = "self"
+    }
+}
+
+/// One line of ~/.config/murmr/apps.txt. Like the dictionary, the file is hand-written, so lines the app does not
+/// understand are kept exactly as they were.
 struct RuleEntry: Identifiable, Equatable {
     enum Kind: Equatable {
         case verbatim
-        case app(bundle: String, style: PronounStyle)  // "com.google.Chrome casual"
-        case title(text: String, style: PronounStyle)  // "title:- Gmail neutral"
+        case profile(PronounProfile)  // "profile tao-may = tao / mày / tụi tao"
+        case defaultRule(String)  // "default tao-may"
+        case app(bundle: String, profile: String)  // "com.google.Chrome tao-may"
+        case title(text: String, profile: String)  // "title:- Gmail keep"
     }
 
     let id = UUID()
@@ -29,24 +82,63 @@ enum AppsFile {
 
     static var path: String { overridePath ?? NSHomeDirectory() + "/.config/murmr/apps.txt" }
 
-    /// Mirrors the engine's reader (styleFor in style.go), so both always agree on what a line means.
+    static func parseProfile(_ line: String) -> PronounProfile? {
+        let t = line.trimmingCharacters(in: .whitespaces)
+        let fields = t.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard !t.hasPrefix("#"), fields.count >= 2, fields[0] == "profile" else { return nil }
+        let id = fields[1]
+        guard id != PronounProfile.keepID, !id.contains("/"), !id.contains("=") else { return nil }
+        var rest = String(t.dropFirst("profile".count)).trimmingCharacters(in: .whitespaces)
+        rest = String(rest.dropFirst(id.count)).trimmingCharacters(in: .whitespaces)
+        if rest.hasPrefix("=") { rest = String(rest.dropFirst()).trimmingCharacters(in: .whitespaces) }
+        let parts = rest.components(separatedBy: "/")
+        let selfWord = PronounProfile.clean(parts[0])
+        let you = parts.count > 1 ? PronounProfile.clean(parts[1]) : ""
+        let we = parts.count > 2 ? PronounProfile.clean(parts[2]) : ""
+        guard !selfWord.isEmpty || !you.isEmpty else { return nil }
+        return PronounProfile(id: id, selfWord: selfWord, you: you, we: we)
+    }
+
+    /// Mirrors the engine's reader (ParsePronouns in style.go), so both always agree on what a line means: definitions
+    /// first, so a rule may come before the profile it names; a rule naming nothing known is left as it was.
     static func parse(_ text: String) -> [RuleEntry] {
         var lines = text.components(separatedBy: "\n")
         if lines.last == "" { lines.removeLast() }
-        return lines.map { line in
+        var defined = Set<String>()
+        var profileAt: [Int: PronounProfile] = [:]
+        for (index, line) in lines.enumerated() {
+            if let profile = parseProfile(line) {
+                defined.insert(profile.id)
+                profileAt[index] = profile
+            }
+        }
+        func known(_ id: String) -> Bool { defined.contains(id) || id == PronounProfile.keepID || id == "neutral" || id == "casual" }
+
+        var entries: [RuleEntry] = []
+        for (index, line) in lines.enumerated() {
+            if let profile = profileAt[index] {
+                entries.append(RuleEntry(kind: .profile(profile), line: line))
+                continue
+            }
             let t = line.trimmingCharacters(in: .whitespaces)
             let fields = t.split(whereSeparator: \.isWhitespace).map(String.init)
-            guard !t.hasPrefix("#"), fields.count >= 2, let style = PronounStyle(rawValue: fields[fields.count - 1]) else {
-                return RuleEntry(kind: .verbatim, line: line)
+            var kind: RuleEntry.Kind = .verbatim
+            if !t.hasPrefix("#"), fields.count >= 2, fields[0] != "profile" {
+                let id = fields[fields.count - 1]
+                if fields[0] == "default" {
+                    kind = .defaultRule(fields[1])
+                } else if known(id) {
+                    if t.hasPrefix("title:") {
+                        let text = String(t.dropFirst("title:".count).dropLast(id.count)).trimmingCharacters(in: .whitespaces)
+                        if !text.isEmpty { kind = .title(text: text, profile: id) }
+                    } else if fields.count == 2 {
+                        kind = .app(bundle: fields[0], profile: id)
+                    }
+                }
             }
-            if t.hasPrefix("title:") {
-                let text = String(t.dropFirst("title:".count).dropLast(style.rawValue.count)).trimmingCharacters(in: .whitespaces)
-                return text.isEmpty ? RuleEntry(kind: .verbatim, line: line) : RuleEntry(kind: .title(text: text, style: style), line: line)
-            }
-            return fields.count == 2
-                ? RuleEntry(kind: .app(bundle: fields[0], style: style), line: line)
-                : RuleEntry(kind: .verbatim, line: line)
+            entries.append(RuleEntry(kind: kind, line: line))
         }
+        return entries
     }
 
     static func serialize(_ entries: [RuleEntry]) -> String {
@@ -82,23 +174,11 @@ enum AppScanner {
     }
 }
 
-/// The engine's built-in rules, from `murmr styles`.
-struct StyleDefaults: Decodable, Equatable {
-    struct TitleRule: Decodable, Equatable, Identifiable {
-        let contains: String
-        let style: String
-        var id: String { contains }
-    }
-
-    var casual: [String]
-    var titleRules: [TitleRule]
-}
-
 @MainActor
 final class AppsStore: ObservableObject {
     @Published private(set) var entries: [RuleEntry] = []
     @Published private(set) var installed: [InstalledApp] = []
-    @Published private(set) var defaults = StyleDefaults(casual: [], titleRules: [])
+    @Published private(set) var presets: [PronounPreset] = []
     @Published var message: String?
 
     /// Reads the rules file only (what the development self-test uses).
@@ -111,36 +191,52 @@ final class AppsStore: ObservableObject {
         loadFile()
         Task {
             installed = await Task.detached { AppScanner.scan() }.value
-            if let output = await EngineCLI.run(["styles"]),
-               let decoded = try? JSONDecoder().decode(StyleDefaults.self, from: Data(output.out.utf8)) {
-                defaults = decoded
+            struct Presets: Decodable { let presets: [PronounPreset] }
+            if let output = await EngineCLI.run(["pronouns"]),
+               let decoded = try? JSONDecoder().decode(Presets.self, from: Data(output.out.utf8)) {
+                presets = decoded.presets
             }
         }
     }
 
     // MARK: reading
 
-    func userStyle(for bundle: String) -> PronounStyle? {
+    var profiles: [PronounProfile] {
+        entries.compactMap { if case .profile(let p) = $0.kind { return p } else { return nil } }
+    }
+
+    /// "keep" (leave pronouns as recognised) when the user has not chosen a default.
+    var defaultID: String {
+        for entry in entries.reversed() {
+            if case .defaultRule(let id) = entry.kind { return id }
+        }
+        return PronounProfile.keepID
+    }
+
+    /// What to call a profile id in a menu. Unknown ids read as "keep", which is also what the engine does.
+    func name(for id: String) -> String {
+        if let p = profiles.first(where: { $0.id == id }) { return p.label }
+        if id == "casual" { return "tao / mày" }
+        return "Giữ nguyên"
+    }
+
+    func userProfileID(for bundle: String) -> String? {
         for entry in entries {
-            if case .app(let b, let style) = entry.kind, b == bundle { return style }
+            if case .app(let b, let id) = entry.kind, b == bundle { return id }
         }
         return nil
     }
 
-    func defaultStyle(for bundle: String) -> PronounStyle { defaults.casual.contains(bundle) ? .casual : .neutral }
-
-    func effectiveStyle(for bundle: String) -> PronounStyle { userStyle(for: bundle) ?? defaultStyle(for: bundle) }
-
     func app(_ bundle: String) -> InstalledApp? { installed.first { $0.bundle == bundle } }
 
-    /// Apps worth a row: those with a built-in rule or one of the user's, and installed (or user-ruled).
+    /// Apps with a rule of the user's; the ones not installed (any more) still show, by their id.
     var listed: [InstalledApp] {
-        var bundles = Set(defaults.casual)
+        var bundles = Set<String>()
         for entry in entries {
             if case .app(let b, _) = entry.kind { bundles.insert(b) }
         }
         return bundles
-            .compactMap { b in app(b) ?? (userStyle(for: b) != nil ? InstalledApp(bundle: b, name: b, path: "") : nil) }
+            .map { app($0) ?? InstalledApp(bundle: $0, name: $0, path: "") }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
@@ -155,18 +251,70 @@ final class AppsStore: ObservableObject {
 
     // MARK: changing (the engine re-reads the file at every dictation, so no restart is needed)
 
-    /// `nil` removes the user's rule, so the built-in default applies again.
-    func setStyle(_ style: PronounStyle?, for bundle: String) {
+    /// Adds a profile and returns its id, or nil (with a message) when there is nothing to add.
+    @discardableResult
+    func addProfile(selfWord rawSelf: String, you rawYou: String, we rawWe: String) -> String? {
+        let selfWord = PronounProfile.clean(rawSelf), you = PronounProfile.clean(rawYou), we = PronounProfile.clean(rawWe)
+        guard !selfWord.isEmpty || !you.isEmpty else {
+            message = "Nhập ít nhất một từ: bạn gọi bản thân, hoặc gọi người nghe."
+            return nil
+        }
+        if let same = profiles.first(where: { $0.selfWord == selfWord && $0.you == you && $0.we == we }) {
+            message = "Đã có «\(same.detail)»."
+            return nil
+        }
         message = nil
-        entries.removeAll { if case .app(let b, _) = $0.kind { return b == bundle } else { return false } }
-        if let style {
-            entries.append(RuleEntry(kind: .app(bundle: bundle, style: style), line: "\(bundle) \(style.rawValue)"))
+        let base = PronounProfile.slug([selfWord, you])
+        var id = base, n = 2
+        let taken = Set(profiles.map(\.id)).union([PronounProfile.keepID, "casual", "neutral", "default", "profile"])
+        while taken.contains(id) { id = "\(base)-\(n)"; n += 1 }
+        let profile = PronounProfile(id: id, selfWord: selfWord, you: you, we: we)
+        entries.append(RuleEntry(kind: .profile(profile), line: profile.line))
+        save()
+        return id
+    }
+
+    /// Removes the profile and every rule that named it, so nothing is left pointing at nothing.
+    func removeProfile(_ id: String) {
+        message = nil
+        entries.removeAll {
+            switch $0.kind {
+            case .profile(let p): return p.id == id
+            case .defaultRule(let d): return d == id
+            case .app(_, let p): return p == id
+            case .title(_, let p): return p == id
+            case .verbatim: return false
+            }
         }
         save()
     }
 
+    /// Puts `entry` where `matching` finds an existing line (so a file the user has arranged keeps its order), else at the
+    /// end. `nil` removes that line.
+    private func put(_ entry: RuleEntry?, replacing matching: (RuleEntry.Kind) -> Bool) {
+        let index = entries.firstIndex { matching($0.kind) }
+        entries.removeAll { matching($0.kind) }
+        guard let entry else { return }
+        entries.insert(entry, at: min(index ?? entries.count, entries.count))
+    }
+
+    func setDefault(_ id: String) {
+        message = nil
+        let entry: RuleEntry? = id == PronounProfile.keepID ? nil : RuleEntry(kind: .defaultRule(id), line: "default \(id)")
+        put(entry) { if case .defaultRule = $0 { return true } else { return false } }
+        save()
+    }
+
+    /// `nil` removes the user's rule for the app, so the default applies again.
+    func setProfile(_ id: String?, for bundle: String) {
+        message = nil
+        let entry: RuleEntry? = id.map { RuleEntry(kind: .app(bundle: bundle, profile: $0), line: "\(bundle) \($0)") }
+        put(entry) { if case .app(let b, _) = $0 { return b == bundle } else { return false } }
+        save()
+    }
+
     @discardableResult
-    func addTitleRule(_ raw: String, style: PronounStyle) -> Bool {
+    func addTitleRule(_ raw: String, profile id: String) -> Bool {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return false }
         let taken = titleRules.contains {
@@ -177,7 +325,7 @@ final class AppsStore: ObservableObject {
             return false
         }
         message = nil
-        entries.append(RuleEntry(kind: .title(text: text, style: style), line: "title:\(text) \(style.rawValue)"))
+        entries.append(RuleEntry(kind: .title(text: text, profile: id), line: "title:\(text) \(id)"))
         save()
         return true
     }

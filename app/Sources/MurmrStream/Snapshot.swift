@@ -15,6 +15,7 @@ enum Snapshot {
             runWelcome(name: first, path: arguments.count > 1 ? arguments[1] : "welcome.png", dark: arguments.contains("dark"))
             return
         }
+        if let sample = ProcessInfo.processInfo.environment["MURMR_SNAPSHOT_APPS"] { AppsFile.overridePath = sample }  // a sample rules file, so the page can be seen with data
         let tab = SettingsTab(rawValue: arguments.first ?? "") ?? .appearance
         let path = arguments.count > 1 ? arguments[1] : "snapshot.png"
         let dark = arguments.contains("dark")
@@ -282,30 +283,57 @@ enum Snapshot {
             if !condition { allOK = false }
         }
 
-        // --- apps.txt: the same sample the engine's own test uses
-        let sample = "com.vng.zalo casual\ntitle:Team Chat neutral\nbogus line\n# note casual\n"
+        // --- apps.txt: the same sample the engine's own test uses (style_test.go)
+        let sample = "# my rules\nprofile tao-may = tao / mày / tụi tao\nprofile toi-ban = tôi / bạn\ndefault toi-ban\n"
+            + "com.mitchellh.ghostty tao-may\ncom.vng.zalo keep\ntitle:Team Chat tao-may\ncom.example.old casual\n"
+            + "com.example.typo no-such-profile\nbogus line\n"
         let parsed = AppsFile.parse(sample)
-        check("parses an app rule", parsed[0].kind == .app(bundle: "com.vng.zalo", style: .casual))
-        check("parses a title rule with a space", parsed[1].kind == .title(text: "Team Chat", style: .neutral))
-        check("a line that is not a rule is kept as it was", parsed[2].kind == .verbatim && parsed[2].line == "bogus line")
-        check("a comment ending in a style word is not a rule", parsed[3].kind == .verbatim)
+        check("parses a profile", parsed[1].kind == .profile(PronounProfile(id: "tao-may", selfWord: "tao", you: "mày", we: "tụi tao")))
+        check("a profile may leave out the 'we'", parsed[2].kind == .profile(PronounProfile(id: "toi-ban", selfWord: "tôi", you: "bạn", we: "")))
+        check("parses the default", parsed[3].kind == .defaultRule("toi-ban"))
+        check("parses an app rule", parsed[4].kind == .app(bundle: "com.mitchellh.ghostty", profile: "tao-may"))
+        check("an explicit keep is a rule", parsed[5].kind == .app(bundle: "com.vng.zalo", profile: "keep"))
+        check("parses a title rule with a space", parsed[6].kind == .title(text: "Team Chat", profile: "tao-may"))
+        check("the old word casual still works", parsed[7].kind == .app(bundle: "com.example.old", profile: "casual"))
+        check("a rule naming a profile nobody defined is kept as it was, not guessed at", parsed[8].kind == .verbatim)
+        check("a line that is not a rule is kept as it was", parsed[9].kind == .verbatim && parsed[9].line == "bogus line")
+        check("a comment is not a rule", parsed[0].kind == .verbatim)
         check("round trip is byte-identical", AppsFile.serialize(parsed) == sample)
+        check("slug: ASCII ids from Vietnamese words", PronounProfile.slug(["tao", "mày"]) == "tao-may" && PronounProfile.slug(["đại", "ca"]) == "dai-ca")
+        check("clean: no quotes, slashes or line breaks, at most 24 characters",
+              PronounProfile.clean("ta\"; x/y\n") == "ta; xy" && PronounProfile.clean(String(repeating: "a", count: 60)).count == 24)
 
         let tmp = NSTemporaryDirectory() + "murmr-apps-selftest.txt"
-        try? "# my rules\ncom.google.Chrome casual\n".write(toFile: tmp, atomically: true, encoding: .utf8)
+        try? "# my rules\ncom.google.Chrome keep\n".write(toFile: tmp, atomically: true, encoding: .utf8)
         AppsFile.overridePath = tmp
         let store = AppsStore()
         store.loadFile()
-        check("reads the user's rule", store.userStyle(for: "com.google.Chrome") == .casual)
-        store.setStyle(.neutral, for: "com.google.Chrome")
-        store.setStyle(.casual, for: "com.vng.zalo")
-        check("replaces and adds rules", store.userStyle(for: "com.google.Chrome") == .neutral && store.userStyle(for: "com.vng.zalo") == .casual)
-        check("adds a title rule", store.addTitleRule("- Gmail", style: .neutral))
-        check("rejects a duplicate title rule (any case)", !store.addTitleRule("- gmail", style: .casual))
-        store.setStyle(nil, for: "com.vng.zalo")
+        check("nothing is assumed: no profiles, default keep", store.profiles.isEmpty && store.defaultID == "keep")
+        check("rejects an empty profile", store.addProfile(selfWord: " ", you: "", we: "x") == nil)
+        let taoMay = store.addProfile(selfWord: "tao", you: "mày", we: "tụi tao")
+        check("adds a profile and returns its id", taoMay == "tao-may" && store.profiles.count == 1)
+        check("rejects the same profile twice", store.addProfile(selfWord: "tao", you: "mày", we: "tụi tao") == nil)
+        let second = store.addProfile(selfWord: "tao", you: "mày", we: "")
+        check("a different set with the same words gets its own id", second == "tao-may-2")
+        store.setDefault("tao-may")
+        check("sets the default", store.defaultID == "tao-may")
+        store.setProfile("tao-may-2", for: "com.vng.zalo")
+        store.setProfile("keep", for: "com.google.Chrome")
+        check("adds and replaces app rules", store.userProfileID(for: "com.vng.zalo") == "tao-may-2" && store.userProfileID(for: "com.google.Chrome") == "keep")
+        check("adds a title rule", store.addTitleRule("- Gmail", profile: "keep"))
+        check("rejects a duplicate title rule (any case)", !store.addTitleRule("- gmail", profile: "tao-may"))
+        store.removeProfile("tao-may-2")
+        check("removing a profile removes the rules that named it", store.userProfileID(for: "com.vng.zalo") == nil && store.profiles.count == 1)
+        store.setDefault("keep")
+        store.setProfile(nil, for: "com.vng.zalo")
         let written = (try? String(contentsOfFile: tmp, encoding: .utf8)) ?? ""
-        check("removing a rule deletes only that line, comment kept",
-              written == "# my rules\ncom.google.Chrome neutral\ntitle:- Gmail neutral\n")
+        check("only the touched lines changed, the comment is kept",
+              written == "# my rules\ncom.google.Chrome keep\nprofile tao-may = tao / mày / tụi tao\ntitle:- Gmail keep\n")
+        check("changing a rule keeps its place in the file", {
+            store.setProfile("tao-may", for: "com.google.Chrome")
+            let text = (try? String(contentsOfFile: tmp, encoding: .utf8)) ?? ""
+            return text.hasPrefix("# my rules\ncom.google.Chrome tao-may\nprofile tao-may")
+        }())
         try? FileManager.default.removeItem(atPath: tmp)
         AppsFile.overridePath = nil
 

@@ -107,14 +107,8 @@ struct NotchView: View {
         }
     }
 
-    /// How pronouns will be written for this app (see style.go).
-    private var styleLabel: String {
-        switch state.style {
-        case "casual": return "tao/mày"
-        case "neutral": return "lịch sự"
-        default: return ""
-        }
-    }
+    /// The profile in use for this app, as the engine labels it ("tao / mày"); nothing when pronouns are left alone.
+    private var styleLabel: String { state.style }
 
     @ViewBuilder private var bottomRow: some View {
         switch state.phase {

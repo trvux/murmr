@@ -21,7 +21,9 @@ The first public build.
   An optional backup service takes over when the first one fails, and the notch tells you when it did.
 - API keys are stored in the macOS Keychain, never on any server of ours. See PRIVACY.md.
 - A personal dictionary, and corrections learned from how you use it.
-- Casual (`tao/mày`) or neutral pronoun style per app, and per window title (for example Gmail).
+- Your own way of addressing: the recognizer turns "tao" into "tôi" and "mày" into "bạn", so you define how you
+  speak ("tao / mày / tụi tao", "tôi / bạn", "anh / em", anything) and where it applies: by default, per app, or per
+  window title. Nothing is assumed out of the box: pronouns are left as recognised until you choose.
 - A menu-bar app with a pill that grows out of the notch, and a Settings window: Dictionary, Apps, AI and keys,
   Appearance, General.
 - `whisper-server` is built into the app, and the two speech models (574 MB in total) download on first launch,

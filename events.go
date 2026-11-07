@@ -14,7 +14,8 @@ import (
 //	loading  stage                 startup step: "dictionary", "whisper" (the long one), "audio", "keys"
 //	ready                          engine is up
 //	recording                      key down, mic is capturing
-//	app      bundle, style         where the text will be pasted (arrives a moment later)
+//	app      bundle, style         where the text will be pasted (arrives a moment later); style is the pronoun
+//	                               profile's label ("tao / mày"), or "" when pronouns are left as recognised
 //	level    v                     0..1 loudness while recording, ~20 per second
 //	partial  stable, tentative     live caption while recording (see streaming.go); stable words stopped
 //	                               changing between two decodes, tentative ones may still be revised

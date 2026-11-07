@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"slices"
-	"sort"
 	"strings"
 )
 
@@ -19,8 +18,8 @@ func runCommand(name string, args []string) error {
 		return cmdForget(args)
 	case "hints":
 		return cmdHints()
-	case "styles":
-		return cmdStyles()
+	case "pronouns":
+		return cmdPronouns()
 	case "drill":
 		return cmdDrill(args)
 	case "progress":
@@ -39,7 +38,7 @@ func runCommand(name string, args []string) error {
 	case "fetch-models":
 		return cmdFetchModels()
 	default:
-		return fmt.Errorf("unknown command %q (try: report, forget, hints, styles, drill, progress, score, clean, models, providers, fetch-models, version)", name)
+		return fmt.Errorf("unknown command %q (try: report, forget, hints, pronouns, drill, progress, score, clean, models, providers, fetch-models, version)", name)
 	}
 }
 
@@ -115,19 +114,27 @@ func cmdForget(args []string) error {
 // cmdClean runs the cleanup step on given text, to try prompt changes without speaking.
 func cmdClean(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf(`usage: murmr clean [--casual] "<raw transcript>"`)
+		return fmt.Errorf(`usage: murmr clean [--as "tao / mày / tụi tao"] "<raw transcript>"`)
 	}
 	dict, cleaner := loadCleaner()
 	if cleaner == nil {
 		return fmt.Errorf("no cleanup provider configured (add a key in Settings, or set MURMR_CLEANUP and its key; see: murmr providers)")
 	}
-	style := styleNeutral
-	if args[0] == "--casual" {
-		style, args = styleCasual, args[1:]
+	profile := profileKeep
+	if args[0] == "--as" && len(args) > 2 { // try a pronoun profile without writing apps.txt
+		parts := strings.Split(args[1], "/")
+		profile = Profile{ID: "try", Self: cleanWord(parts[0])}
+		if len(parts) > 1 {
+			profile.You = cleanWord(parts[1])
+		}
+		if len(parts) > 2 {
+			profile.We = cleanWord(parts[2])
+		}
+		args = args[2:]
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), cleanupTimeout)
 	defer cancel()
-	out, err := cleaner.Clean(ctx, dict.Apply(strings.Join(args, " ")), stylePrompt(style))
+	out, err := cleaner.Clean(ctx, dict.Apply(strings.Join(args, " ")), profile.Prompt())
 	if err != nil {
 		return err
 	}
@@ -165,23 +172,24 @@ func cmdHints() error {
 	return nil
 }
 
-// stylesJSON describes the built-in pronoun-style rules, so the app's Settings window can show which
-// apps are casual (tao/mày) by default without keeping a second copy of the list.
-func stylesJSON() ([]byte, error) {
-	casual := make([]string, 0, len(defaultCasualApps))
-	for bundle := range defaultCasualApps {
-		casual = append(casual, bundle)
+// pronounsJSON lists the starting points for a pronoun profile, so the Settings window shows them without keeping a
+// second copy. Nothing in it is applied until the user adds it.
+func pronounsJSON() ([]byte, error) {
+	type preset struct {
+		Label string `json:"label"`
+		Self  string `json:"self"`
+		You   string `json:"you"`
+		We    string `json:"we"`
 	}
-	sort.Strings(casual)
-	rules := make([]map[string]string, 0, len(defaultTitleRules))
-	for _, r := range defaultTitleRules {
-		rules = append(rules, map[string]string{"contains": r.contains, "style": r.style})
+	presets := []preset{}
+	for _, p := range pronounPresets() {
+		presets = append(presets, preset{Label: p.Label(), Self: p.Self, You: p.You, We: p.We})
 	}
-	return json.Marshal(map[string]any{"casual": casual, "titleRules": rules})
+	return json.Marshal(map[string]any{"presets": presets})
 }
 
-func cmdStyles() error {
-	b, err := stylesJSON()
+func cmdPronouns() error {
+	b, err := pronounsJSON()
 	if err != nil {
 		return err
 	}

@@ -53,8 +53,9 @@ After that it opens like any other app, and a short welcome window walks through
   both Whisper's prompt and the LLM.
 - **Learns from use**: recurring "heard X, meant Y" corrections found in your history become soft
   hints for the LLM.
-- **Per-app pronoun style**: casual (`tao/mày`) in terminals and AI apps, neutral elsewhere, with
-  window-title rules (e.g. a browser tab ending in "- Gmail" is neutral).
+- **Your own way of addressing**: the recognizer flattens "tao" into "tôi" and "mày" into "bạn". You define how you
+  speak ("tao / mày / tụi tao", "tôi / bạn", "mình / cậu", "anh / em"...) and where it applies: by default, per app, or
+  per window title (e.g. a tab ending in "- Gmail"). Out of the box nothing is assumed: pronouns are left as recognised.
 - **Pronunciation practice** (`drill`): phoneme-level feedback, optionally replayed in your own voice.
 
 ## Status
@@ -122,8 +123,8 @@ open "app/build/Murmr Stream.app"
 - **Settings** (menu bar icon, "Cài đặt…"):
   - **Từ điển** edits `dictionary.txt` (terms, hard fixes, and the pairs learned from your history, which you
     can drop) without touching the file's comments.
-  - **Ứng dụng** chooses, per app, whether dictation uses casual `tao/mày` or neutral pronouns (or the
-    default), and lets you add window-title rules. It edits `apps.txt` for you and applies at once.
+  - **Xưng hô** is where you define your ways of addressing (a few starting points are offered, none is applied for
+    you), pick the default, and set it per app or per window title. It edits `apps.txt` for you and applies at once.
   - **AI và khoá API** picks DeepSeek or Claude, stores the key in the **macOS Keychain**, tests it, lists the models your key can use so you pick one (newest first, older ones folded), and lists
     exactly what is and is not sent. Changing keys or provider asks for an engine restart.
   - **Giao diện** chooses the wave style (five, shown side by side) and the notch corner shape.
@@ -157,8 +158,8 @@ and `MurmrStream --snapshot <dictionary|apps|ai|appearance|general|pills> out.pn
 | `./murmr fetch-models` | download the two speech models now (the app does it on first launch) |
 | `./murmr providers` | the services the engine knows, as JSON (what the AI page draws) |
 | `./murmr models <id>` | the models a service offers for your key, as JSON (what the model menu shows) |
-| `./murmr styles` | the apps and their pronoun style as JSON (what the Ứng dụng page shows) |
-| `./murmr clean [--casual] "<text>"` | run only the cleanup step, to try prompt changes |
+| `./murmr pronouns` | the starting points for a way of addressing, as JSON (what the Xưng hô page offers) |
+| `./murmr clean [--as "tao / mày / tụi tao"] "<text>"` | run only the cleanup step, to try prompt changes or a way of addressing |
 | `./murmr drill` | read practice sentences, get phoneme-level feedback and a replay in your voice |
 | `./murmr progress` | weekly accuracy and which sound classes are hardest |
 | `./murmr score <file.wav> "<text>"` | phoneme-score an existing recording |
@@ -231,7 +232,9 @@ Set in `~/.config/murmr/env` (all optional except a cleanup key if you want clea
 | `MURMR_SOUND_START/STOP/READY` | `Tink`/`Pop`/`Glass` | macOS system sound names, or `off` |
 | `MURMR_DICT`, `MURMR_PORT`, `MURMR_SAVE` | | dictionary path, whisper-server port, directory to save clips |
 
-App rules live in `~/.config/murmr/apps.txt` (`<bundle id> casual|neutral` or `title:<text> casual|neutral`).
+Pronoun rules live in `~/.config/murmr/apps.txt`, one per line: `profile tao-may = tao / mày / tụi tao` defines a way of
+addressing, `default tao-may` sets the default, `<bundle id> tao-may` applies to one app, `title:<text> tao-may` to window
+titles containing that text (`keep` leaves pronouns as recognised). The Xưng hô page writes this for you.
 
 ## Pronunciation tools (optional)
 

@@ -1,24 +1,109 @@
 import SwiftUI
 
-/// "Ứng dụng": how pronouns are written when dictating into each app. Edits apps.txt; the engine re-reads it at
-/// every dictation, so a change applies to the very next thing you say.
+/// "Xưng hô": how you address yourself and the listener, and where. The app offers the mechanism and a few starting
+/// points; it never assumes how anyone speaks. Everything is written to apps.txt, which the engine re-reads at every
+/// dictation, so a change applies to the very next thing you say.
 struct AppsPage: View {
     @StateObject private var store = AppsStore()
     @State private var showPicker = false
+    @State private var newSelf = ""
+    @State private var newYou = ""
+    @State private var newWe = ""
     @State private var ruleText = ""
-    @State private var ruleStyle: PronounStyle = .neutral
+    @State private var ruleProfile = PronounProfile.keepID
 
     var body: some View {
         PageScaffold(
-            title: "Ứng dụng",
-            subtitle: "Chọn cách xưng hô khi nói vào từng app: «tao/mày» khi nói với máy và AI, «lịch sự» khi nói với người. Áp dụng ở lần nói kế tiếp, không cần khởi động lại."
+            title: "Xưng hô",
+            subtitle: "Máy chép lời hay đổi «tao» thành «tôi», «mày» thành «bạn». Cho Murmr Stream biết bạn xưng hô thế nào, AI sẽ viết lại đúng như vậy. Mặc định nó giữ nguyên những gì nghe được."
         ) {
+            profilesSection
+            Hairline()
+            defaultSection
+            Hairline()
             appsSection
             Hairline()
             titlesSection
         }
         .onAppear { store.load() }
+        .onChange(of: newSelf) { store.message = nil }
         .onChange(of: ruleText) { store.message = nil }
+    }
+
+    // MARK: your ways of addressing
+
+    private var profilesSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.m) {
+            Eyebrow("Cách xưng hô của bạn")
+            if store.profiles.isEmpty {
+                MascotNote(mood: .idle, text: "Chưa có cách xưng hô nào. Chọn một gợi ý bên dưới, hoặc tự nhập.")
+            } else {
+                RuledList(items: store.profiles) { profile in
+                    HStack {
+                        Text(profile.detail).font(Theme.Typeface.bodyStrong).foregroundStyle(Theme.ink)
+                        Spacer()
+                        RemoveButton(label: "Xoá cách xưng hô") { store.removeProfile(profile.id) }
+                    }
+                }
+            }
+
+            if !store.presets.isEmpty {
+                Text("Gợi ý (bấm để điền vào ô bên dưới, rồi bấm Thêm):")
+                    .font(Theme.Typeface.caption)
+                    .foregroundStyle(Theme.inkMuted)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: Theme.Space.s)], alignment: .leading, spacing: Theme.Space.s) {
+                    ForEach(store.presets) { preset in
+                        OutlineButton(title: preset.label) {
+                            newSelf = preset.selfWord
+                            newYou = preset.you
+                            newWe = preset.we
+                        }
+                    }
+                }
+            }
+
+            HStack(spacing: Theme.Space.s) {
+                InputField(placeholder: "Tôi nói là…", text: $newSelf, onSubmit: addProfile)
+                InputField(placeholder: "Gọi người nghe là…", text: $newYou, onSubmit: addProfile)
+                InputField(placeholder: "Chúng tôi (tuỳ chọn)", text: $newWe, onSubmit: addProfile)
+                InkButton(title: "Thêm", action: addProfile)
+                    .opacity(canAddProfile ? 1 : 0.4)
+                    .disabled(!canAddProfile)
+            }
+            if let message = store.message {
+                Text(message).font(Theme.Typeface.caption).foregroundStyle(Theme.signal)
+            }
+        }
+    }
+
+    private var canAddProfile: Bool {
+        !newSelf.trimmingCharacters(in: .whitespaces).isEmpty || !newYou.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private func addProfile() {
+        guard store.addProfile(selfWord: newSelf, you: newYou, we: newWe) != nil else { return }
+        newSelf = ""
+        newYou = ""
+        newWe = ""
+    }
+
+    // MARK: the default
+
+    private var defaultSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.m) {
+            Eyebrow("Mặc định")
+            Text("Dùng khi không có quy tắc nào khác bên dưới.")
+                .font(Theme.Typeface.caption)
+                .foregroundStyle(Theme.inkMuted)
+            MenuField(label: store.defaultID == PronounProfile.keepID ? "Giữ nguyên như máy nghe được" : store.name(for: store.defaultID)) {
+                Picker("Mặc định", selection: Binding(get: { store.defaultID }, set: { store.setDefault($0) })) {
+                    Text("Giữ nguyên như máy nghe được").tag(PronounProfile.keepID)
+                    ForEach(store.profiles) { Text($0.detail).tag($0.id) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            }
+        }
     }
 
     // MARK: apps
@@ -26,14 +111,12 @@ struct AppsPage: View {
     private var appsSection: some View {
         VStack(alignment: .leading, spacing: Theme.Space.m) {
             Eyebrow("Theo ứng dụng")
-            Text("App không có trong danh sách dùng «lịch sự»: giữ nguyên xưng hô Whisper chép. Chỉ cần thêm những app bạn nói với máy.")
+            Text("Chỉ cần thêm app mà bạn xưng hô khác mặc định, ví dụ nói «tao/mày» với AI trong terminal nhưng «tôi/bạn» khi viết email.")
                 .font(Theme.Typeface.caption)
                 .foregroundStyle(Theme.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if store.listed.isEmpty {
-                MascotNote(mood: .sleeping, text: "Đang tìm các ứng dụng…")
-            } else {
+            if !store.listed.isEmpty {
                 RuledList(items: store.listed) { app in
                     AppRow(app: app, store: store)
                 }
@@ -42,7 +125,9 @@ struct AppsPage: View {
             OutlineButton(title: "Thêm ứng dụng", symbol: "plus") { showPicker = true }
                 .popover(isPresented: $showPicker, arrowEdge: .bottom) {
                     AppPicker(apps: store.notListed) { app in
-                        store.setStyle(.casual, for: app.bundle)  // an app worth listing is usually one you talk to
+                        // start from a profile other than the default if there is one, so the new row already means something
+                        let other = store.profiles.first { $0.id != store.defaultID }?.id ?? PronounProfile.keepID
+                        store.setProfile(store.defaultID == PronounProfile.keepID ? other : PronounProfile.keepID, for: app.bundle)
                         showPicker = false
                     }
                 }
@@ -50,25 +135,6 @@ struct AppsPage: View {
     }
 
     // MARK: titles
-
-    private struct TitleRow: Identifiable {
-        let id: String
-        let text: String
-        let style: PronounStyle
-        let entry: RuleEntry?  // nil for a built-in rule
-    }
-
-    private var titleRows: [TitleRow] {
-        let mine = store.titleRules.compactMap { entry -> TitleRow? in
-            if case .title(let text, let style) = entry.kind { return TitleRow(id: "u-" + entry.id.uuidString, text: text, style: style, entry: entry) }
-            return nil
-        }
-        let builtIn = store.defaults.titleRules.map {
-            TitleRow(id: "d-" + $0.contains, text: $0.contains.trimmingCharacters(in: .whitespaces),
-                     style: PronounStyle(rawValue: $0.style) ?? .neutral, entry: nil)
-        }
-        return mine + builtIn
-    }
 
     private var titlesSection: some View {
         VStack(alignment: .leading, spacing: Theme.Space.m) {
@@ -78,40 +144,45 @@ struct AppsPage: View {
                 .foregroundStyle(Theme.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
 
-            RuledList(items: titleRows) { row in
-                HStack(spacing: Theme.Space.m) {
-                    Text("chứa").font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted)
-                    KeyChip(text: row.text)
-                    Image(systemName: "arrow.right").font(Theme.Typeface.caption).foregroundStyle(Theme.inkFaint)
-                    Text(row.style.title).font(Theme.Typeface.bodyStrong).foregroundStyle(Theme.ink)
-                    Spacer()
-                    if let entry = row.entry {
+            if !store.titleRules.isEmpty {
+                RuledList(items: store.titleRules) { entry in
+                    HStack(spacing: Theme.Space.m) {
+                        if case .title(let text, let id) = entry.kind {
+                            Text("chứa").font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted)
+                            KeyChip(text: text)
+                            Image(systemName: "arrow.right").font(Theme.Typeface.caption).foregroundStyle(Theme.inkFaint)
+                            Text(store.name(for: id)).font(Theme.Typeface.bodyStrong).foregroundStyle(Theme.ink)
+                        }
+                        Spacer()
                         RemoveButton(label: "Xoá quy tắc tiêu đề") { store.remove(entry) }
-                    } else {
-                        Text("Mặc định").font(Theme.Typeface.caption).foregroundStyle(Theme.inkFaint)
                     }
                 }
             }
 
             HStack(spacing: Theme.Space.s) {
                 InputField(placeholder: "Tiêu đề chứa…, ví dụ: - Gmail", text: $ruleText, onSubmit: addRule)
-                SegmentedChoice(options: [(PronounStyle.casual, "tao/mày"), (.neutral, "lịch sự")], selection: $ruleStyle)
+                MenuField(label: store.name(for: ruleProfile)) {
+                    Picker("Xưng hô", selection: $ruleProfile) {
+                        Text("Giữ nguyên").tag(PronounProfile.keepID)
+                        ForEach(store.profiles) { Text($0.detail).tag($0.id) }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                }
+                .frame(width: 170)
                 InkButton(title: "Thêm", action: addRule)
                     .opacity(ruleText.trimmingCharacters(in: .whitespaces).isEmpty ? 0.4 : 1)
                     .disabled(ruleText.trimmingCharacters(in: .whitespaces).isEmpty)
-            }
-            if let message = store.message {
-                Text(message).font(Theme.Typeface.caption).foregroundStyle(Theme.signal)
             }
         }
     }
 
     private func addRule() {
-        if store.addTitleRule(ruleText, style: ruleStyle) { ruleText = "" }
+        if store.addTitleRule(ruleText, profile: ruleProfile) { ruleText = "" }
     }
 }
 
-/// One app: its icon and name, and the three-way choice (the built-in default, tao/mày, lịch sự).
+/// One app with a rule: its icon and name, and a menu to choose how you address in it.
 private struct AppRow: View {
     let app: InstalledApp
     @ObservedObject var store: AppsStore
@@ -125,20 +196,22 @@ private struct AppRow: View {
     var body: some View {
         HStack(spacing: Theme.Space.m) {
             Image(nsImage: icon).resizable().frame(width: Theme.Space.xxl - Theme.Space.xs, height: Theme.Space.xxl - Theme.Space.xs)
-            VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                Text(app.name).font(Theme.Typeface.bodyStrong).foregroundStyle(Theme.ink)
-                Text("mặc định: \(store.defaultStyle(for: app.bundle).title)")
-                    .font(Theme.Typeface.caption)
-                    .foregroundStyle(Theme.inkMuted)
-            }
+            Text(app.name).font(Theme.Typeface.bodyStrong).foregroundStyle(Theme.ink)
             Spacer()
-            SegmentedChoice(
-                options: [(PronounStyle?.none, "Mặc định"), (.casual, "tao/mày"), (.neutral, "lịch sự")],
-                selection: Binding(
-                    get: { store.userStyle(for: app.bundle) },
-                    set: { store.setStyle($0, for: app.bundle) }
-                )
-            )
+            MenuField(label: store.name(for: store.userProfileID(for: app.bundle) ?? PronounProfile.keepID)) {
+                Picker("Xưng hô", selection: Binding(
+                    get: { store.userProfileID(for: app.bundle) ?? PronounProfile.keepID },
+                    set: { store.setProfile($0, for: app.bundle) }
+                )) {
+                    Text("Giữ nguyên").tag(PronounProfile.keepID)
+                    ForEach(store.profiles) { Text($0.detail).tag($0.id) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+                Divider()
+                Button("Bỏ quy tắc: dùng mặc định") { store.setProfile(nil, for: app.bundle) }
+            }
+            .frame(width: 200)
         }
     }
 }
