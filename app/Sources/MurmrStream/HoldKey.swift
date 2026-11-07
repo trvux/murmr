@@ -144,10 +144,16 @@ final class HoldKeyCapture: ObservableObject {
     private var monitor: Any?
     private var recognizer = HoldKeyRecognizer()
     private var onCommit: (HoldKey) -> Void = { _ in }
+    private var onActive: (Bool) -> Void = { _ in }
 
-    func start(onCommit: @escaping (HoldKey) -> Void) {
+    /// `onActive(true)` when choosing begins and `onActive(false)` however it ends (a key chosen, Esc, the window closing,
+    /// a second click): the app uses it to pause the dictation key, so pressing the current key to choose another does
+    /// not start a recording.
+    func start(onActive: @escaping (Bool) -> Void = { _ in }, onCommit: @escaping (HoldKey) -> Void) {
         stop()
         self.onCommit = onCommit
+        self.onActive = onActive
+        onActive(true)
         recognizer = HoldKeyRecognizer()
         message = nil
         listening = true
@@ -166,7 +172,9 @@ final class HoldKeyCapture: ObservableObject {
     func stop() {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
+        let wasListening = listening
         listening = false
+        if wasListening { onActive(false) }
     }
 
     private func handle(_ outcome: HoldKeyRecognizer.Outcome) {

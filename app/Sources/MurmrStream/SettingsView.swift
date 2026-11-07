@@ -530,7 +530,7 @@ struct HoldKeyField: View {
         if capture.listening {
             capture.stop()
         } else {
-            capture.start { key in state.setHoldKey(key) }
+            capture.start(onActive: { state.setKeyCapturing($0) }) { key in state.setHoldKey(key) }
         }
     }
 }

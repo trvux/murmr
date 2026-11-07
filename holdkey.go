@@ -121,6 +121,9 @@ type holdMachine struct {
 	tainted bool // another key arrived while a modifier was held: it is a shortcut, not a dictation
 	timer   *time.Timer
 	emit    func(down bool)
+
+	paused  bool        // the person is choosing a new key: the old one must not start a recording
+	unpause *time.Timer // a safety net, in case "resume" never comes
 }
 
 func newHoldMachine(cfg holdConfig, emit func(bool)) *holdMachine {
@@ -146,11 +149,34 @@ func (m *holdMachine) release() {
 	m.held, m.active, m.tainted = false, false, false
 }
 
+// maxPause is how long the key may stay paused without a word from the app (it lets go by itself after this).
+const maxPause = 60 * time.Second
+
+// SetPaused stops the dictation key from doing anything (and releases it if it is down), or starts it again. The app
+// pauses it while the person is choosing a new key: pressing the old key to choose, say, Option+Shift+M must not start
+// a recording.
+func (m *holdMachine) SetPaused(p bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.unpause != nil {
+		m.unpause.Stop()
+		m.unpause = nil
+	}
+	if p {
+		m.release()
+		m.unpause = time.AfterFunc(maxPause, func() { m.SetPaused(false) })
+	}
+	m.paused = p
+}
+
 // Handle takes one event and says whether it must be swallowed (kept from the app in front): only the dictation key
 // itself, and only when it is a combo, since a modifier on its own is harmless to let through.
 func (m *holdMachine) Handle(e rawEvent) (swallow bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.paused {
+		return false
+	}
 	if m.cfg.kind == holdMod {
 		m.handleMod(e)
 		return false

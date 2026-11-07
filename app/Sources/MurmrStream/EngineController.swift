@@ -151,8 +151,13 @@ final class EngineController {
     }
 
     /// Tells the running engine to use another dictation key now (it also reads MURMR_KEY at every start).
-    func sendHoldKey(_ spec: String) {
-        try? stdinPipe?.fileHandleForWriting.write(contentsOf: Data("key \(spec)\n".utf8))
+    func sendHoldKey(_ spec: String) { send("key \(spec)") }
+
+    /// "capture on" pauses the dictation key while a new one is being chosen; "capture off" lets it work again.
+    func setKeyCapturing(_ on: Bool) { send(on ? "capture on" : "capture off") }
+
+    private func send(_ line: String) {
+        try? stdinPipe?.fileHandleForWriting.write(contentsOf: Data((line + "\n").utf8))
     }
 
     func restart() {

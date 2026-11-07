@@ -51,10 +51,19 @@ func daemon() {
 	defer cancel()
 	if events != nil {
 		// Started by the macOS app shell: stop when the shell goes away (its end of our stdin closes). The shell can also
-		// send lines: "key <spec>" changes the dictation key right away (see holdkey.go), without a restart.
+		// send lines: "key <spec>" changes the dictation key right away (see holdkey.go), without a restart, and
+		// "capture on" / "capture off" pause it while the person is choosing a new one.
 		go func() {
 			sc := bufio.NewScanner(os.Stdin)
 			for sc.Scan() {
+				switch sc.Text() {
+				case "capture on": // the person is choosing a new dictation key: the old one must do nothing meanwhile
+					hold.SetPaused(true)
+					continue
+				case "capture off":
+					hold.SetPaused(false)
+					continue
+				}
 				if spec, ok := strings.CutPrefix(sc.Text(), "key "); ok {
 					if err := SetHoldKey(spec); err != nil {
 						log.Printf("dictation key: %v", err)

@@ -183,3 +183,38 @@ func TestChangingTheKeyWhileHeldReleasesIt(t *testing.T) {
 		t.Error("the new key works at once")
 	}
 }
+
+func TestPausedKeyDoesNothingAndResumes(t *testing.T) {
+	m, r := machine(t, "mod:61")
+	m.SetPaused(true)
+	// choosing a new key by pressing Option+Shift+M must not start a recording
+	m.Handle(flags(61, 0x40))
+	m.Handle(down(46, flagOption|flagShift))
+	m.Handle(flags(61, 0))
+	if len(r.got) != 0 {
+		t.Errorf("a paused key does nothing: %v", r.got)
+	}
+	m.SetPaused(false)
+	m.Handle(flags(61, 0x40))
+	m.Handle(flags(61, 0))
+	if len(r.got) != 2 || !r.got[0] || r.got[1] {
+		t.Errorf("after resuming it works again: %v", r.got)
+	}
+}
+
+func TestPausingWhileHeldReleasesTheRecording(t *testing.T) {
+	m, r := machine(t, "mod:61")
+	m.Handle(flags(61, 0x40))
+	m.SetPaused(true)
+	if len(r.got) != 2 || r.got[1] {
+		t.Errorf("pausing mid-recording must not leave it hanging: %v", r.got)
+	}
+}
+
+func TestPausedComboIsNotSwallowed(t *testing.T) {
+	m, _ := machine(t, "combo:49:c0000")
+	m.SetPaused(true)
+	if m.Handle(down(49, flagControl|flagOption)) {
+		t.Error("while choosing a key nothing may be swallowed")
+	}
+}

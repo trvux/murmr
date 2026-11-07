@@ -62,6 +62,11 @@ final class AppState: ObservableObject {
         holdKeyHandler?(key.spec)
     }
 
+    var keyCaptureHandler: ((Bool) -> Void)?
+
+    /// The person is choosing a new dictation key (or has finished): the engine pauses the current one meanwhile.
+    func setKeyCapturing(_ on: Bool) { keyCaptureHandler?(on) }
+
     /// Something the engine only reads at startup (dictionary, API keys...) changed. Cleared when it restarts.
     @Published var needsRestart = false
     var restartHandler: (() -> Void)?
