@@ -47,7 +47,9 @@ The first public build.
   was already on from another build still read "not granted". The button now opens the right page in System Settings,
   the window says how to clear an old entry, and it warns when the app runs from the installer or a temporary copy,
   where permissions do not stick. The dialogs now come one after another by themselves (as the microphone one did),
-  and the status updates as soon as you come back from System Settings instead of waiting for another click.
+  and the status updates as soon as you come back from System Settings instead of waiting for another click. If an update
+  leaves a permission missing, the window opens at the permissions step (once per build) instead of leaving dictation
+  silently broken.
 - Choosing the dictation key: a modifier pressed on its own (right Option, left Command, fn) was not noticed, so the
   box stayed on "Nhấn phím…". Modifiers are now read from the system, presses in the first moments are ignored, and
   "Đặt lại" is there while choosing too.

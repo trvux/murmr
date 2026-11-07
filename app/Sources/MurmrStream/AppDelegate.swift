@@ -34,7 +34,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         engine.start()
 
         // First launch: say hello and walk through the permissions. Any time after, from the menu.
-        if !UserDefaults.standard.bool(forKey: "welcomeDone") { openWelcome() }
+        if !UserDefaults.standard.bool(forKey: "welcomeDone") {
+            openWelcome()
+        } else {
+            // After an update macOS can have forgotten the permissions (a new build is a new app to it) and nothing would
+            // say why dictation does nothing. Show the permissions step, once per build.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.guideIfPermissionsMissing() }
+        }
 
         // Development hook: open Settings right away (used to smoke-test the window without clicking).
         if ProcessInfo.processInfo.environment["MURMR_OPEN_SETTINGS"] == "1" { openSettings() }
@@ -145,10 +151,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         settingsWindow?.makeKeyAndOrderFront(nil)
     }
 
-    @objc private func openWelcome() {
+    private func guideIfPermissionsMissing() {
+        permissions.refresh()
+        guard !permissions.allGranted else { return }
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
+        guard UserDefaults.standard.string(forKey: "permissionsGuideBuild") != build else { return }
+        UserDefaults.standard.set(build, forKey: "permissionsGuideBuild")
+        showWelcome(at: .permissions)
+    }
+
+    @objc private func openWelcome() { showWelcome(at: .hello) }
+
+    private func showWelcome(at step: WelcomeView.Step) {
         welcomeWindow?.close()  // always start from the first step
         let view = WelcomeView(
-            state: state, permissions: permissions,
+            state: state, permissions: permissions, initialStep: step,
             openAISettings: { [weak self] in self?.openSettings() },
             finish: { [weak self] in
                 UserDefaults.standard.set(true, forKey: "welcomeDone")
