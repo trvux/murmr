@@ -42,6 +42,19 @@ enum Theme {
     static let pillInk = Color(nsColor: NSColor(hex: 0xF6F2E9))
     static let pillAccent = Color(nsColor: NSColor(hex: 0xE0825C))  // the clay, lifted to read on black
 
+    /// A colour on the way from the pill's paper to its clay: 0 is paper, 1 is clay. Blended in sRGB by hand because
+    /// Color.mix needs macOS 15 and the app runs on 14. The wave uses it so that louder speech is richer in colour, not darker
+    /// (darker would fade into the black pill).
+    static func pillBlend(_ amount: Double) -> Color {
+        let t = min(1, max(0, amount))
+        let paper: (Double, Double, Double) = (0xF6, 0xF2, 0xE9)
+        let clay: (Double, Double, Double) = (0xE0, 0x82, 0x5C)
+        let r: Double = (paper.0 + (clay.0 - paper.0) * t) / 255
+        let g: Double = (paper.1 + (clay.1 - paper.1) * t) / 255
+        let b: Double = (paper.2 + (clay.2 - paper.2) * t) / 255
+        return Color(.sRGB, red: r, green: g, blue: b)
+    }
+
     // MARK: space (4pt scale)
 
     enum Space {

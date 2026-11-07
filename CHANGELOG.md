@@ -29,7 +29,8 @@ The first public build.
 - An app icon (a murmuration: a flock of small birds, one in clay) and an installer window that shows where to drag the
   app and what the first-launch "Open Anyway" row in System Settings looks like.
 - The notch wave is the brand's own drawn line by default ("Nét vẽ Murmr"): like the smooth-line style (five weaving lines,
-  tapering at both ends, a swing that follows your voice) but made of the logo's wing-beat curves, ending in clay.
+  tapering at both ends, a swing that follows your voice) but made of the logo's wing-beat curves, and its colour follows
+  your voice too: pale cream when you are quiet, rich clay when you speak up.
   The other wave styles are still in Settings.
 - The mascot also speaks in empty, waiting and failed states (empty dictionary, scanning apps, engine stopped, a key test).
 - A welcome window on first launch, with the mascot (a plump bird from the flock): what the app does, the three

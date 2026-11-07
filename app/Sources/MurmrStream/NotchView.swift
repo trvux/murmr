@@ -197,7 +197,7 @@ struct WaveView: View {
 /// The brand's mark as a wave, behaving like the smooth-line style (three layers running at different speeds, tapering to
 /// nothing at both ends, an amplitude that follows the voice and reaches most of the row) but drawn in the logo's hand:
 /// instead of a sine, a chain of wing-beats, each a rounded arch that falls into a point (1 - 2|sin|). The main layer
-/// fades in from the left and ends in clay. The swing is capped inside the frame, so no arch is ever cut off.
+/// takes its colour from the voice. The swing is capped inside the frame, so no arch is ever cut off.
 struct FlockWave: View {
     let level: CGFloat
 
@@ -249,22 +249,26 @@ struct FlockWave: View {
         TimelineView(.animation) { context in
             let t: Double = context.date.timeIntervalSinceReferenceDate
             Canvas { gc, size in
+                // Colour follows the voice: pale at silence, richer clay the louder it gets, and within a line the
+                // tall middle (where the swing is) is richer than the flat ends. Saturation, not darkness, so it
+                // never fades into the black pill.
+                let drive: Double = min(1, Double(level) * 2.4)
+                let richness: Double = pow(drive, 0.8)
                 for (index, layer) in Self.layers.enumerated() {
                     let path = Self.path(layer: layer, level: level, size: size, t: t)
                     let style = StrokeStyle(lineWidth: layer.lineWidth, lineCap: .round, lineJoin: .round)
-                    if index == 0 {
-                        let stops: [Gradient.Stop] = [
-                            Gradient.Stop(color: Theme.pillInk.opacity(0.35), location: 0),
-                            Gradient.Stop(color: Theme.pillInk, location: 0.3),
-                            Gradient.Stop(color: Theme.pillInk, location: 0.84),
-                            Gradient.Stop(color: Theme.pillAccent, location: 0.9),
-                            Gradient.Stop(color: Theme.pillAccent, location: 1),
-                        ]
-                        let shading = GraphicsContext.Shading.linearGradient(Gradient(stops: stops), startPoint: .zero, endPoint: CGPoint(x: size.width, y: 0))
-                        gc.stroke(path, with: shading, style: style)
-                    } else {
-                        gc.stroke(path, with: .color(Theme.pillInk.opacity(layer.opacity)), style: style)
-                    }
+                    let share: Double = 0.45 + 0.55 * layer.share
+                    let centre: Double = 0.12 + 0.88 * richness * share
+                    let edge: Double = 0.12 + 0.3 * richness * share
+                    let stops: [Gradient.Stop] = [
+                        Gradient.Stop(color: Theme.pillBlend(edge).opacity(layer.opacity * 0.35), location: 0),
+                        Gradient.Stop(color: Theme.pillBlend((edge + centre) / 2).opacity(layer.opacity), location: 0.25),
+                        Gradient.Stop(color: Theme.pillBlend(centre).opacity(layer.opacity), location: 0.5),
+                        Gradient.Stop(color: Theme.pillBlend((edge + centre) / 2).opacity(layer.opacity), location: 0.75),
+                        Gradient.Stop(color: Theme.pillBlend(edge).opacity(layer.opacity * 0.35), location: 1),
+                    ]
+                    let shading = GraphicsContext.Shading.linearGradient(Gradient(stops: stops), startPoint: .zero, endPoint: CGPoint(x: size.width, y: 0))
+                    gc.stroke(path, with: shading, style: style)
                 }
             }
         }
