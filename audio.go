@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"sync"
+	"sync/atomic"
 
 	"github.com/gen2brain/malgo"
 )
@@ -20,7 +21,24 @@ type Recorder struct {
 	mu     sync.Mutex
 	pcm    []int16
 	active bool
+	level  atomic.Uint64 // float64 bits: RMS of the latest audio callback
 }
+
+// Snapshot returns a copy of the last n samples recorded so far (all of them if fewer).
+func (r *Recorder) Snapshot(n int) []int16 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	start := 0
+	if len(r.pcm) > n {
+		start = len(r.pcm) - n
+	}
+	out := make([]int16, len(r.pcm)-start)
+	copy(out, r.pcm[start:])
+	return out
+}
+
+// Level is the loudness of the most recent audio chunk on a 0..1 scale.
+func (r *Recorder) Level() float64 { return math.Float64frombits(r.level.Load()) }
 
 func NewRecorder() (*Recorder, error) {
 	ctx, err := malgo.InitContext(nil, malgo.ContextConfig{}, nil)
@@ -52,8 +70,15 @@ func (r *Recorder) onData(_, in []byte, frames uint32) {
 		return
 	}
 	n := int(frames)
+	var sum float64
 	for i := 0; i < n; i++ {
-		r.pcm = append(r.pcm, int16(binary.LittleEndian.Uint16(in[i*2:])))
+		s := int16(binary.LittleEndian.Uint16(in[i*2:]))
+		r.pcm = append(r.pcm, s)
+		f := float64(s) / 32768
+		sum += f * f
+	}
+	if n > 0 {
+		r.level.Store(math.Float64bits(math.Sqrt(sum / float64(n))))
 	}
 }
 

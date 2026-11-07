@@ -38,14 +38,14 @@ func vadArgs() []string {
 	return []string{"--vad", "-vm", path, "-vsd", "500", "-vp", "150"}
 }
 
-func StartWhisper(ctx context.Context, model, port, prompt string) (*Whisper, error) {
+func StartWhisper(ctx context.Context, model, port, prompt string, extra ...string) (*Whisper, error) {
 	args := []string{
 		"-m", model,
 		"--host", "127.0.0.1", "--port", port,
 		"-l", "auto", "-nt", "-sns",
 		"--prompt", prompt,
 	}
-	cmd := exec.CommandContext(ctx, "whisper-server", append(args, vadArgs()...)...)
+	cmd := exec.CommandContext(ctx, "whisper-server", append(args, extra...)...)
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
 	if err := cmd.Start(); err != nil {

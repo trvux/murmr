@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -44,17 +45,45 @@ func daemon() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
+	if os.Getenv("MURMR_EVENTS") == "1" {
+		// Started by the macOS app shell: report state as JSON lines on stdout, and
+		// stop when the shell goes away (its end of our stdin closes).
+		events = newEventSink(os.Stdout)
+		go func() {
+			_, _ = io.Copy(io.Discard, os.Stdin)
+			cancel()
+		}()
+	}
+
 	if len(vadArgs()) > 0 {
 		log.Printf("vad: on (non-speech is ignored)")
 	} else {
 		log.Printf("vad: OFF (model missing or MURMR_VAD=off): Whisper may invent text from noise")
 	}
 	log.Printf("starting whisper-server (first launch compiles Metal shaders, ~10s)...")
-	wh, err := StartWhisper(ctx, model, getenv("MURMR_PORT", "8178"), dict.WhisperPrompt(whisperPrompt))
+	wh, err := StartWhisper(ctx, model, getenv("MURMR_PORT", "8178"), dict.WhisperPrompt(whisperPrompt), vadArgs()...)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer wh.Stop()
+
+	// Optional live captions (MURMR_PREVIEW=on) need a second, faster server; it loads in the background.
+	if events != nil && os.Getenv("MURMR_PREVIEW") == "on" {
+		go func() {
+			pw, err := StartWhisper(ctx, model, getenv("MURMR_PREVIEW_PORT", "8179"), dict.WhisperPrompt(whisperPrompt), "-ac", previewACArg)
+			if err != nil {
+				log.Printf("preview server: %v (live text off)", err)
+				return
+			}
+			previewSrv.Store(pw)
+			log.Printf("live preview: on")
+		}()
+		defer func() {
+			if pw := previewSrv.Load(); pw != nil {
+				pw.Stop()
+			}
+		}()
+	}
 
 	rec, err := NewRecorder()
 	if err != nil {
@@ -77,7 +106,9 @@ func daemon() {
 
 	playSound(getenv("MURMR_SOUND_READY", "Glass"))
 	log.Printf("ready. hold RIGHT Option to dictate, Ctrl+C to quit")
+	events.emit("ready")
 
+	stopLevels, stopPreview := func() {}, func() {}
 	var appc <-chan appCtx
 	for {
 		select {
@@ -86,6 +117,8 @@ func daemon() {
 			return
 		case down := <-keys:
 			if !down {
+				stopLevels()
+				stopPreview()
 				pcm := rec.Stop()
 				playSound(getenv("MURMR_SOUND_STOP", "Pop"))
 				select {
@@ -102,8 +135,15 @@ func daemon() {
 			// Read the target app now, before the user can switch away; the slow
 			// part runs in the background while they speak.
 			ch := make(chan appCtx, 1)
-			go func() { ch <- readAppCtx() }()
+			go func() {
+				c := readAppCtx()
+				ch <- c
+				events.emit("app", "bundle", c.Bundle, "style", styleFor(c)) // never the title: it can hold an email address
+			}()
 			appc = ch
+			events.emit("recording")
+			stopLevels = startLevels(events, rec)
+			stopPreview = startPreview(events, rec)
 			playSound(getenv("MURMR_SOUND_START", "Tink"))
 			log.Printf("recording...")
 		}
@@ -121,6 +161,7 @@ func process(wh *Whisper, cleaner Cleaner, dict *Dictionary, j job) {
 	style := styleFor(app)
 	if isSilent(pcm) {
 		log.Printf("too short/silent, skipped (%.1fs, level %.4f)", float64(len(pcm))/sampleRate, rms(pcm))
+		events.emit("skipped", "reason", "silent")
 		return
 	}
 	t0 := time.Now()
@@ -129,13 +170,16 @@ func process(wh *Whisper, cleaner Cleaner, dict *Dictionary, j job) {
 		_ = os.MkdirAll(dir, 0o755)
 		_ = os.WriteFile(filepath.Join(dir, time.Now().Format("150405")+".wav"), wav, 0o644)
 	}
+	events.emit("processing", "stage", "transcribe")
 	tr, err := wh.Transcribe(wav)
 	if err != nil {
 		log.Printf("transcribe: %v", err)
+		events.emit("error", "msg", "Không nghe được: "+err.Error())
 		return
 	}
 	if !hasWord(tr.Text) { // Whisper sometimes returns just "." for silence or noise
 		log.Printf("no speech detected (%.1fs of audio, level %.4f)", float64(len(pcm))/sampleRate, rms(pcm))
+		events.emit("skipped", "reason", "no_speech")
 		return
 	}
 	raw := dict.Apply(tr.Text)
@@ -143,6 +187,7 @@ func process(wh *Whisper, cleaner Cleaner, dict *Dictionary, j job) {
 
 	text := raw
 	if cleaner != nil {
+		events.emit("processing", "stage", "cleanup")
 		ctx, cancel := context.WithTimeout(context.Background(), cleanupTimeout)
 		cleaned, err := cleaner.Clean(ctx, raw, stylePrompt(style))
 		cancel()
@@ -165,7 +210,10 @@ func process(wh *Whisper, cleaner Cleaner, dict *Dictionary, j job) {
 
 	if err := pasteText(text); err != nil {
 		log.Printf("paste (grant Accessibility to your terminal?): %v", err)
+		events.emit("error", "msg", "Không dán được, cần quyền Accessibility")
+		return
 	}
+	events.emit("done", "text", text, "ms", time.Since(t0).Milliseconds())
 }
 
 func getenv(k, def string) string {
