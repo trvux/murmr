@@ -53,4 +53,5 @@ jobs:
       - name: App checks
         run: |
           app/scripts/design-lint.sh
+          scripts/check-docs.sh
           "app/build/Murmr Stream.app/Contents/MacOS/MurmrStream" --dict-selftest

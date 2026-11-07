@@ -115,7 +115,7 @@ enum Snapshot {
                 state.style = "tôi / bạn"
                 state.level = 0.5
                 state.levels = (0..<AppState.historyCount).map { CGFloat(0.25 + 0.5 * abs(sin(Double($0) / 4))) }
-                state.appIcon = NSWorkspace.shared.icon(forFile: "/System/Applications/Utilities/Terminal.app")
+                state.appIcon = NSApp.applicationIconImage  // our own icon: the snapshots are used in the README, which should not show other apps
                 return VStack(alignment: .leading, spacing: Theme.Space.xs) {
                     Text(row.label).font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted)
                     NotchView(state: state, layout: layout).frame(width: 560, height: 96)

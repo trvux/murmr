@@ -1,17 +1,20 @@
+<p align="center"><b>English</b> · <a href="PRIVACY.vi.md">Tiếng Việt</a></p>
+
 # Privacy and terms (draft)
 
 > **Status: draft.** The privacy section below describes what the code does today and was checked against
 > it. The terms of use are a placeholder to be completed by the author. This is not legal advice.
 
-## Tóm tắt (Vietnamese summary)
+## In short
 
-- **Khoá API nằm trên máy bạn**, trong Keychain của macOS. Murmr Stream không có máy chủ, không tạo tài khoản,
-  không nhận khoá, giọng nói hay chữ của bạn.
-- **Giọng nói không rời máy.** Whisper chạy hoàn toàn trên máy bạn.
-- Chỉ khi bạn **bật AI dọn văn**, phần **chữ đã chép** (cùng từ điển và gợi ý đã học) được gửi **thẳng từ máy bạn**
-  tới dịch vụ bạn chọn (DeepSeek, Anthropic, OpenAI, Gemini, Kimi, OpenRouter hoặc địa chỉ bạn tự nhập), kèm khoá của bạn. Dịch vụ đó có chính sách dữ liệu riêng.
-- **Tắt AI thì không có gì rời máy.**
-- Không có telemetry, analytics hay báo cáo lỗi tự động.
+- **Your API keys stay on your computer**, in the macOS Keychain. Murmr Stream has no server and no accounts, and it
+  receives none of your keys, voice or text.
+- **Your voice never leaves your computer.** Whisper runs entirely on your Mac.
+- Only when you **turn on AI cleanup**, the **transcribed text** (with your dictionary and learned hints) goes **straight
+  from your computer** to the service you chose (DeepSeek, Anthropic, OpenAI, Gemini, Kimi, OpenRouter or an address you
+  typed), together with your key. That service has its own data policy.
+- **With AI off, nothing leaves your computer.**
+- There is no telemetry, analytics or automatic crash reporting.
 
 ## What Murmr Stream is
 
@@ -36,7 +39,7 @@ When AI cleanup is on, each dictation sends one request **directly from your com
 
 - **DeepSeek**: `https://api.deepseek.com/chat/completions`
 - **Anthropic**: `https://api.anthropic.com/v1/messages`
-- **OpenAI, Gemini, Kimi, OpenRouter**: the `/chat/completions` address of that service (see the README table)
+- **OpenAI, Gemini, Kimi, OpenRouter**: the `/chat/completions` address of that service (see the [service table](docs/DEVELOPMENT.md#ai-services-and-api-keys))
 - **Custom**: the address you type. It must be https, except for `localhost`.
 - **Ollama** (or any server on this machine): `http://localhost…`. The text stays on your computer.
 

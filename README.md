@@ -1,3 +1,5 @@
+<p align="center"><b>English</b> · <a href="README.vi.md">Tiếng Việt</a></p>
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/banner-dark.png">
@@ -7,262 +9,106 @@
 
 # Murmr Stream
 
-Hold a key, speak, release: your words appear in whatever app has focus. A free, local-first
-dictation tool for macOS, built for **Vietnamese mixed with English**, written in Go.
-(The repo and the command are both called `murmr`.)
+**Hold a key, speak, release. Your words appear in whatever app has focus.**
 
-**[Download for Mac](https://github.com/trvux/murmr/releases/latest/download/Murmr-Stream.dmg)** (Apple Silicon, macOS 14
-or later) · [all versions and notes](https://github.com/trvux/murmr/releases)
+A free, local-first dictation app for macOS, built for **Vietnamese mixed with English**. Speech recognition runs on
+your Mac. An optional AI step cleans up the text.
+
+[![Download](https://img.shields.io/badge/Download-for%20Mac-1c1a16?style=flat-square)](https://github.com/trvux/murmr/releases/latest/download/Murmr-Stream.dmg)
+[![Release](https://img.shields.io/github/v/release/trvux/murmr?style=flat-square&color=b5532f)](https://github.com/trvux/murmr/releases/latest)
+[![Platform](https://img.shields.io/badge/macOS-14%2B%20·%20Apple%20Silicon-blue?style=flat-square)](#install)
+[![License](https://img.shields.io/github/license/trvux/murmr?style=flat-square)](LICENSE)
+
+<p align="center">
+  <img src="docs/screenshots/notch.png" alt="The pill that grows out of the notch: listening, transcribing, done, and an error" width="560">
+</p>
+
+## How it works
 
 ```
-hold RIGHT Option -> microphone (16 kHz)
-   -> whisper-server (local, model stays loaded, Metal)  -> raw text
-   -> DeepSeek / Claude cleanup (fillers, punctuation, mis-heard terms, pronouns)
-   -> clipboard + Cmd+V into the focused app
+hold your key -> microphone (16 kHz)
+   -> whisper-server (on your Mac, the model stays loaded, Metal)   -> raw text
+   -> AI cleanup (optional: fillers, punctuation, mis-heard terms)  -> clean text
+   -> pasted into the app in front (Cmd+V)
 ```
 
-## Download
+You choose the key. It can be a modifier on its own (the right Option by default), a function key, or a combination.
 
-Use the **Download for Mac** link at the top (it always points at the newest `Murmr-Stream.dmg`), open it, drag
-**Murmr Stream** into Applications. Every version has its own page with notes of what changed (they come from
-[CHANGELOG.md](CHANGELOG.md)) and a checksum. Needs Apple Silicon and macOS 14 or later (built for 14; tested on
-macOS 15 and later, there is no Mac on 14 to try it on).
+## Features
 
-**The first time you open it, macOS blocks it**, because the app is not notarized by Apple (that costs a yearly fee
-that this free project does not pay yet). It is a one-time step:
+| | |
+|---|---|
+| **Hold to talk** | Any key or combination you pick, changed at once with no restart. Nothing you type is recorded. |
+| **Local speech to text** | whisper.cpp `large-v3-turbo` with voice-activity detection, so silence and noise are ignored instead of turned into invented words. |
+| **AI cleanup** | Removes fillers, fixes punctuation and mis-heard English tech terms, keeps Vietnamese and English as you spoke them. Works with DeepSeek, Claude, OpenAI, Gemini, Kimi, OpenRouter, Ollama on your own machine, or any OpenAI-compatible address. Without a key you still get the raw text. |
+| **Your own way of addressing** | Say it the way you speak: "tao / mày", "tôi / bạn", "mình / cậu", "anh / em". Set a default, or one per app or per window title. Nothing is assumed for you. |
+| **Personal dictionary** | Names, terms and `wrong -> Right` fixes, fed to both Whisper and the AI. It also learns recurring corrections from how you use it. |
+| **Private by design** | No account, no server of ours, no telemetry. Keys live in the macOS Keychain. See [PRIVACY.md](PRIVACY.md). |
 
-1. Open the app once and dismiss the warning ("Done").
-2. Open **System Settings → Privacy & Security** and scroll down to **Security**.
-3. Click **Open Anyway** next to "Murmr Stream was blocked", and confirm with your password or Touch ID.
+<p align="center">
+  <img src="docs/screenshots/pronouns.png" alt="The addressing page of the Settings window" width="720">
+</p>
+
+> The app's own interface is in Vietnamese for now.
+
+## Install
+
+1. [Download **Murmr-Stream.dmg**](https://github.com/trvux/murmr/releases/latest/download/Murmr-Stream.dmg), open it and drag **Murmr Stream** into **Applications**.
+2. Eject the disk image, then open the app **from Applications** (not from inside the disk image: macOS would run a
+   temporary copy and forget the permissions you give it).
+3. **The first time, macOS blocks it**, because the app is not notarized by Apple (that costs a yearly fee this free
+   project does not pay yet). It is a one-time step: dismiss the warning ("Done"), open **System Settings → Privacy &
+   Security**, scroll to **Security** and click **Open Anyway**, then confirm with your password or Touch ID.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/first-launch-dark.png">
   <img src="docs/first-launch.png" alt="The three steps for the first launch: dismiss the warning, open Privacy &amp; Security, click Open Anyway" width="820">
 </picture>
 
-After that it opens like any other app, and a short welcome window walks through the permissions.
+Then a short welcome window asks you to choose your dictation key, allow the three permissions macOS asks for, and
+downloads the speech models (574 MB, once). Needs a Mac with Apple Silicon and macOS 14 or later (built for 14, tested on
+macOS 15 and later).
 
-## What it does
+<p align="center">
+  <img src="docs/screenshots/welcome.png" alt="The welcome window: choose the key you hold to talk" width="360">
+</p>
 
-- **Hold-to-talk** on a key you choose (default: the right Option). Pick it in the welcome window or Settings, General: a
-  modifier on its own (either Option, Command, Control or Shift, or fn; the key still works normally), a function key,
-  or a combination such as Control+Option+Space. A combination is kept from reaching the app in front while you hold it.
-  It changes at once, with no restart. The engine reads key events through a `CGEventTap` and compares only the key codes
-  with your choice; nothing is recorded.
-- **Local speech-to-text**: whisper.cpp `large-v3-turbo` (q5_0) behind `whisper-server`, with Silero VAD so
-  silence and noise are ignored instead of turned into invented text.
-- **LLM cleanup** with DeepSeek (default) or Claude Haiku: removes fillers, fixes punctuation and
-  mis-heard English tech terms, keeps mixed Vietnamese/English as spoken. If the API fails or times out,
-  the raw transcript is pasted.
-- **Personal dictionary** (`~/.config/murmr/dictionary.txt`): terms and `wrong -> Right` fixes, fed to
-  both Whisper's prompt and the LLM.
-- **Learns from use**: recurring "heard X, meant Y" corrections found in your history become soft
-  hints for the LLM.
-- **Your own way of addressing**: the recognizer flattens "tao" into "tôi" and "mày" into "bạn". You define how you
-  speak ("tao / mày / tụi tao", "tôi / bạn", "mình / cậu", "anh / em"...) and where it applies: by default, per app, or
-  per window title (e.g. a title containing "Family"). Out of the box nothing is assumed: pronouns are left as recognised.
-- **Pronunciation practice** (`drill`): phoneme-level feedback, optionally replayed in your own voice.
+## Use it
+
+1. Click into any text field.
+2. Hold your key and speak.
+3. Release. The text is pasted a moment later (about 2 to 3 seconds for a short sentence on an M2 Pro).
+
+Settings live in the menu bar icon: dictionary, addressing, AI service and key, appearance, and the dictation key.
+
+## Questions
+
+**macOS says the app cannot be opened.** That is the first-launch step above: **System Settings → Privacy & Security → Open Anyway**.
+
+**A permission shows "not granted" although its switch is on.** macOS ties a permission to one build of one app, in one
+place. Make sure you opened the app from Applications, then in the System Settings list click **−** to remove Murmr
+Stream and **+** to add it again.
+
+**I pressed the key and nothing happened.** All three permissions (Microphone, Input Monitoring, Accessibility) must be
+granted, and the models must have finished downloading. The welcome window shows both; reopen it from the menu bar icon.
+
+**Does it work without an AI key?** Yes. You get the raw transcript, which is already usable.
+
+**What leaves my Mac?** Audio never does. With AI cleanup on, the transcript text goes straight from your Mac to the
+service you chose. Turn the AI off and nothing leaves. The full list is in [PRIVACY.md](PRIVACY.md).
 
 ## Status
 
-Built and tested on one machine (MacBook Pro M2 Pro, macOS) and mostly with one speaker.
-Measured there: about 1.8 s to transcribe a 20 s clip, and roughly 2-3 s from releasing the key to the
-text being pasted. Whisper still mishears English tech terms spoken with a Vietnamese accent
-(for example `crash` as `cache`); the cleanup step fixes many of these from context but not all.
-The phoneme scorer was only validated on synthetic voices and one real speaker, so treat its numbers
-as relative, not absolute.
+Built and tested on one machine (MacBook Pro M2 Pro) and mostly with one speaker. Whisper still mishears English tech
+terms spoken with a Vietnamese accent (for example `crash` as `cache`); the cleanup step fixes many of these from
+context, not all.
 
-## Requirements
+## For developers
 
-macOS on Apple Silicon, Go 1.27+, and:
-
-```sh
-brew install whisper-cpp
-```
-
-Optional, for the pronunciation tools: `brew install uv espeak-ng ffmpeg`.
-
-## Install
-
-```sh
-git clone https://github.com/trvux/murmr && cd murmr
-go build -o murmr .
-
-mkdir -p models
-curl -L -o models/ggml-large-v3-turbo-q5_0.bin \
-  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin
-curl -L -o models/ggml-silero-v5.1.2.bin \
-  https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v5.1.2.bin
-
-mkdir -p ~/.config/murmr && chmod 700 ~/.config/murmr
-echo 'export DEEPSEEK_API_KEY=...' > ~/.config/murmr/env && chmod 600 ~/.config/murmr/env
-./run.sh
-```
-
-macOS will ask for **Microphone**, **Input Monitoring** (to see your dictation key) and **Accessibility** (pasting, and keeping a key combination from typing)
-for your terminal. Without a cleanup key it still works, with raw Whisper output.
-
-## macOS app
-
-`app/` is a menu-bar app (Swift, SwiftUI, no Xcode needed) that runs the Go engine and draws the
-state on the notch: a black pill grows out of it while you hold the key, shows a slim wave that
-follows your voice, then "Đang chép lời" / "Đang dọn văn", then the pasted text. On a screen without a
-notch it floats under the top edge.
-
-```sh
-app/scripts/bundle.sh                 # builds the engine, whisper-server and "Murmr Stream.app" into app/build/
-open "app/build/Murmr Stream.app"
-```
-
-- **Nothing to install for users.** The app carries its own `whisper-server`: one self-contained file built from
-  whisper.cpp by `app/scripts/build-whisper.sh` (static, Metal embedded, runs on macOS 14 or later; the first
-  `bundle.sh` runs it for you and needs `brew install cmake`). Homebrew's `whisper-cpp` is only needed to run from
-  a terminal with `./run.sh`; it links libraries by absolute path and is built for the newest macOS only, so it
-  cannot be copied into an app. On start the engine also stops an orphaned `whisper-server` left on its port by a
-  crashed run.
-- **Welcome window.** On first launch (and from the menu, "Hướng dẫn ban đầu…") a short guide walks through the three
-  permissions with live status, then the model download. The mascot is drawn in `Theme.swift` (`Mascot`, six moods).
-- **Permissions.** The app asks for Microphone, Input Monitoring (to see your dictation key) and Accessibility
-  (pasting). With ad-hoc signing macOS forgets them on every rebuild; to keep them, create a self-signed
-  code-signing certificate in your keychain and build with `MURMR_SIGN_ID="<its name>" app/scripts/bundle.sh`.
-- **Settings** (menu bar icon, "Cài đặt…"):
-  - **Từ điển** edits `dictionary.txt` (terms, hard fixes, and the pairs learned from your history, which you
-    can drop) without touching the file's comments.
-  - **Xưng hô** is where you define your ways of addressing (a few starting points are offered, none is applied for
-    you), pick the default, and set it per app or per window title. It edits `apps.txt` for you and applies at once.
-  - **AI và khoá API** picks DeepSeek or Claude, stores the key in the **macOS Keychain**, tests it, lists the models your key can use so you pick one (newest first, older ones folded), and lists
-    exactly what is and is not sent. Changing keys or provider asks for an engine restart.
-  - **Giao diện** chooses the wave style (five, shown side by side) and the notch corner shape.
-  - **Chung** shows the engine status.
-
-  A thin bar at the foot of the sidebar shows engine startup progress (an estimate: the engine reports each
-  step, and loading Whisper is the long one).
-- **Logs** go to `~/Library/Logs/Murmr Stream/engine.log`. The dictated text is never written there.
-- Only one engine can run at a time (they share port 8178, the microphone and the key), so quit
-  `./run.sh` before opening the app.
-- Live captions while you speak exist but are off by default (`MURMR_PREVIEW=on`): they need a second,
-  faster Whisper server (about 600 MB more RAM) and only update about every 0.6 s, because Whisper
-  encodes a fixed window per decode.
-
-Not notarized yet, so a downloaded build will trigger macOS's unidentified-developer warning.
-
-### Design
-
-The look is a deliberate system, not defaults: read [DESIGN.md](DESIGN.md). All visual values live in
-`app/Sources/MurmrStream/Theme.swift`, `app/scripts/design-lint.sh` rejects raw values and banned patterns,
-and `MurmrStream --snapshot <dictionary|apps|ai|appearance|general|pills> out.png [dark]` renders the UI offscreen to check it.
-
-## Commands
-
-| Command | What it does |
-|---|---|
-| `./run.sh` | start dictating (loads `~/.config/murmr/env` first) |
-| `./murmr report` | recurring mishearings found in your history |
-| `./murmr forget "<heard text>"` | stop using a learned hint |
-| `./murmr hints` | the learned "heard => meant" pairs as JSON (what the Settings window shows) |
-| `./murmr fetch-models` | download the two speech models now (the app does it on first launch) |
-| `./murmr providers` | the services the engine knows, as JSON (what the AI page draws) |
-| `./murmr models <id>` | the models a service offers for your key, as JSON (what the model menu shows) |
-| `./murmr holdkey-check <spec> [seconds]` | run the real key tap and print `down` / `up` (e.g. `combo:105:0` is F13, `mod:61` the right Option) |
-| `./murmr pronouns` | the starting points for a way of addressing, as JSON (what the Xưng hô page offers) |
-| `./murmr clean [--as "tao / mày / tụi tao"] "<text>"` | run only the cleanup step, to try prompt changes or a way of addressing |
-| `./murmr drill` | read practice sentences, get phoneme-level feedback and a replay in your voice |
-| `./murmr progress` | weekly accuracy and which sound classes are hardest |
-| `./murmr score <file.wav> "<text>"` | phoneme-score an existing recording |
-
-## AI API keys (read this before you fork)
-
-Murmr Stream calls a hosted LLM for **one step only: cleaning up the transcript** (removing fillers,
-fixing punctuation and mis-heard terms, handling pronouns). Speech recognition, VAD, phoneme scoring and
-the own-voice replay all run locally and use no API.
-
-Services are rows in one table, `providers.go` (`./murmr providers` prints it, and the Settings window draws
-from it). There are only two wire protocols: **OpenAI-compatible** chat completions (most services) and
-**Anthropic Messages** (Claude). A service is its address, key variable and default model, plus an optional
-small quirk (DeepSeek turns thinking off; OpenAI gets no `temperature`).
-
-| Service | Key variable | Address | Checked with a real key |
-|---|---|---|---|
-| DeepSeek (default when its key is set) | `DEEPSEEK_API_KEY` | `https://api.deepseek.com` | yes (`deepseek-flash`) |
-| Claude (Anthropic) | `ANTHROPIC_API_KEY` | `https://api.anthropic.com/v1` | yes (`claude-haiku-4-5-20251001`) |
-| OpenAI | `OPENAI_API_KEY` | `https://api.openai.com/v1` | **no** |
-| Gemini (Google, OpenAI-compatible layer) | `GEMINI_API_KEY` | `https://generativelanguage.googleapis.com/v1beta/openai` | **no** |
-| Kimi (Moonshot) | `MOONSHOT_API_KEY` | `https://api.moonshot.ai/v1` | **no** |
-| OpenRouter (many labs behind one key) | `OPENROUTER_API_KEY` | `https://openrouter.ai/api/v1` | **no** |
-| Ollama (runs on your machine, no key, text never leaves it) | none | `http://localhost:11434/v1` (`OLLAMA_BASE_URL`) | **no** |
-| Custom (any OpenAI-compatible service, e.g. LM Studio) | `CUSTOM_API_KEY` (optional) | `CUSTOM_BASE_URL` | **no** |
-
-Services not yet checked have no default model: you pick one from the list the service itself returns
-(`./murmr models <id>`). An address must be https, except for this machine (`localhost`), so a key is never
-sent over plain http to another host. You are billed by the provider per request; check their pricing. Pick one
-with `MURMR_CLEANUP=<id>`, or `none` to use no API at all (you then get raw Whisper output). Left unset, the
-first service in the table that has a key is used (services that need no key are never picked automatically).
-
-**Where to put keys.** In the app, use Settings, "AI và khoá API": the key goes to the macOS Keychain
-(not synced to iCloud) and the app hands it to its own engine process. From the command line, put it in
-`~/.config/murmr/env`, outside the repository, with `chmod 600`; `run.sh` loads that file, and the app
-still reads it as a fallback (the page offers to move such a key into the Keychain). Never put a key in the
-source tree or in a commit. If one leaks, revoke it
-at the provider right away; deleting the commit is not enough.
-
-**What is sent with every dictation** (this is the full list):
-
-- the transcript text (after your `wrong -> Right` dictionary fixes);
-- a system prompt made of the cleanup rules, the **terms from your personal dictionary** (so any names
-  you add there go to the provider), the **learned hints** (pairs of "heard X, meant Y" from your history)
-  and a short pronoun-style note.
-
-**What is not sent:** audio, the focused app's name, window titles, your history file, or any
-other provider's key.
-
-If a request fails or takes longer than 8 seconds, the raw Whisper text is pasted instead (or, with `MURMR_FALLBACK=<id>`, that second service is tried first), so
-dictation never blocks on the network. If you point a fork at another provider, read that provider's
-data-retention terms first, because dictation text can contain private things.
-
-## Configuration
-
-Set in `~/.config/murmr/env` (all optional except a cleanup key if you want cleanup):
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `DEEPSEEK_API_KEY`, `ANTHROPIC_API_KEY` | none | cleanup provider (DeepSeek preferred if both are set) |
-| `<SERVICE>_MODEL` | per service | model name, e.g. `DEEPSEEK_MODEL`, `ANTHROPIC_MODEL`, `OPENAI_MODEL` (the Settings choice wins) |
-| `MURMR_CLEANUP` | auto | a service id (`deepseek`, `claude`, `openai`...) or `none` |
-| `MURMR_FALLBACK` | off | a service id: if the chosen service fails or takes over 6 s, try this one (needs its own key; sends the text there) |
-| `MURMR_MODEL` | downloaded | path of your own Whisper model; used as is, never downloaded |
-| `MURMR_VAD` / `MURMR_VAD_MODEL` | on / downloaded | `MURMR_VAD=off` disables VAD; the second is your own VAD model |
-| `MURMR_MODELS_DIR` | `~/Library/Application Support/Murmr Stream/models` | where downloaded models go (a `./models/` folder in the working directory is used first, for source checkouts) |
-| `MURMR_HISTORY` | on | `off` stops writing `history.jsonl` |
-| `MURMR_CONFIDENCE` | off | `on` adds per-word confidence, costs about 0.8 s per dictation |
-| `MURMR_PREVIEW` / `MURMR_PREVIEW_PORT` | off / `8179` | `on` starts the second server for live captions (app shell only) |
-| `MURMR_SOUND_START/STOP/READY` | `Tink`/`Pop`/`Glass` | macOS system sound names, or `off` |
-| `MURMR_KEY` | `mod:61` | the dictation key: `mod:<key code>` for a modifier alone, `combo:<key code>:<modifier flags in hex>` otherwise (the app writes it) |
-| `MURMR_DICT`, `MURMR_PORT`, `MURMR_SAVE` | | dictionary path, whisper-server port, directory to save clips |
-
-Pronoun rules live in `~/.config/murmr/apps.txt`, one per line: `profile tao-may = tao / mày / tụi tao` defines a way of
-addressing, `default tao-may` sets the default, `<bundle id> tao-may` applies to one app, `title:<text> tao-may` to window
-titles containing that text (`keep` leaves pronouns as recognised). The Xưng hô page writes this for you.
-
-## Pronunciation tools (optional)
-
-`drill` and `score` use a local phoneme recognizer (wav2vec2 + espeak-ng IPA), set up in
-[`phoneme/`](phoneme/README.md). The replay "in your own voice" is an experiment in
-[`voice/`](voice/README.md): the learner's timbre with native pronunciation, so you can hear your
-attempt and the correct version back to back.
-
-## Privacy
-
-- Audio is processed locally and is not stored unless you set `MURMR_SAVE`.
-- **The transcript text of each dictation is sent to the cleanup provider** (DeepSeek or Anthropic)
-  unless you set `MURMR_CLEANUP=none`.
-- `~/.config/murmr/history.jsonl` stores raw and final text locally (no audio), mode `0600`.
-- Drill and voice features use your own recordings, kept on your machine. API keys live in the Keychain
-  or in your own env file and are never part of this repository.
-- The author runs no server and receives nothing: no account, no telemetry. Details, and a draft of the
-  terms to be completed, are in [PRIVACY.md](PRIVACY.md).
+Building from source, the engine commands, every setting, the AI service table and the design rules are in
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Changes per version are in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Pieces you download separately (whisper.cpp and its models, the Silero VAD
-model, OpenVoice, the wav2vec2 phoneme model, espeak-ng) have their own licenses; check them before
-redistributing anything that includes them.
+MIT, see [LICENSE](LICENSE). Pieces you download separately (whisper.cpp and its models, the Silero VAD model, OpenVoice,
+the wav2vec2 phoneme model, espeak-ng) have their own licenses; check them before redistributing anything that includes them.

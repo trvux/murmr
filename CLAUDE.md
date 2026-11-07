@@ -16,6 +16,13 @@ Go engine at the repo root, Swift/SwiftUI app shell in `app/`.
   steps (`let x: CGFloat = ...`). CI is where this shows up; a green local build does not prove it.
 - Quit the running app before opening a new build (`open` on a running app only focuses the old one).
 
+## Documents come in two languages
+
+`README`, `PRIVACY` and `docs/DEVELOPMENT` each exist as `X.md` (English) and `X.vi.md` (Vietnamese), with a language link
+in the first line. Change both in the same commit and run `scripts/check-docs.sh` (CI runs it): it fails when one side
+gains a section, table row, code block, image or link the other lacks. `CHANGELOG.md` stays English (the release notes
+come from it); the release page footer (`.github/release-footer.md`) carries both languages.
+
 ## UI work: brand first, code second
 
 Read `DESIGN.md` before changing anything visual. The product has one deliberate look (quiet
