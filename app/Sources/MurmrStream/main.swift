@@ -8,6 +8,10 @@ MainActor.assumeIsolated {
         Snapshot.renderBrand(.icon, to: CommandLine.arguments[i + 1])
         return
     }
+    if let i = CommandLine.arguments.firstIndex(of: "--brand-guide"), CommandLine.arguments.count > i + 1 {
+        Snapshot.renderBrand(.guide, to: CommandLine.arguments[i + 1], dark: CommandLine.arguments.contains("dark"))
+        return
+    }
     if let i = CommandLine.arguments.firstIndex(of: "--brand-banner"), CommandLine.arguments.count > i + 1 {
         Snapshot.renderBrand(.banner, to: CommandLine.arguments[i + 1], dark: CommandLine.arguments.contains("dark"))
         return

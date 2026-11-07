@@ -690,3 +690,113 @@ struct Poly: Shape {
         return p
     }
 }
+
+// MARK: - First-launch guide (README and release page)
+
+/// The three steps for the one-time "Open Anyway", drawn in the app's own style with small copies of what macOS shows at
+/// each step, so each is recognised when it appears. Rendered by `MurmrStream --brand-guide`.
+struct GuideArt: View {
+    static let size = CGSize(width: 1200, height: 820)
+
+    var body: some View {
+        ZStack {
+            Theme.paper
+            VStack(alignment: .leading, spacing: 30) {
+                HStack(spacing: 28) {
+                    Mascot(mood: .oops, size: 124)
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Lần đầu mở, macOS sẽ chặn")
+                            .font(.system(size: 40, weight: .semibold, design: .serif))
+                            .foregroundStyle(Theme.ink)
+                        Text("Vì app chưa được Apple công chứng. Chỉ cần làm một lần, ba bước.")
+                            .font(.system(size: 20))
+                            .foregroundStyle(Theme.inkMuted)
+                    }
+                }
+                VStack(spacing: 0) {
+                    Rectangle().fill(Theme.rule).frame(height: 1)
+                    step(1, "Mở Murmr Stream. Khi macOS báo không xác minh được, bấm Done.") { dialog }
+                    Rectangle().fill(Theme.rule).frame(height: 1)
+                    step(2, "Mở System Settings, chọn Privacy & Security, kéo xuống mục Security.") { sidebar }
+                    Rectangle().fill(Theme.rule).frame(height: 1)
+                    step(3, "Bấm Open Anyway cạnh dòng “Murmr Stream was blocked”, rồi xác nhận bằng mật khẩu hoặc Touch ID.") { blockedRow }
+                    Rectangle().fill(Theme.rule).frame(height: 1)
+                }
+            }
+            .padding(.horizontal, 56)
+        }
+        .frame(width: Self.size.width, height: Self.size.height)
+    }
+
+    private func step<M: View>(_ n: Int, _ text: String, @ViewBuilder _ mock: () -> M) -> some View {
+        HStack(alignment: .center, spacing: 24) {
+            Text("\(n)")
+                .font(.system(size: 22, weight: .semibold, design: .serif))
+                .foregroundStyle(Theme.paper)
+                .frame(width: 44, height: 44)
+                .background(Circle().fill(Theme.ink))
+            Text(text)
+                .font(.system(size: 21))
+                .foregroundStyle(Theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: 440, alignment: .leading)
+            Spacer(minLength: 0)
+            mock()
+        }
+        .padding(.vertical, 24)
+    }
+
+    private var card: RoundedRectangle { RoundedRectangle(cornerRadius: 14, style: .continuous) }
+
+    private var dialog: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Image(systemName: "exclamationmark.shield").font(.system(size: 30)).foregroundStyle(Theme.signal)
+            Text("“Murmr Stream” Not Opened").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.ink)
+            Text("Apple could not verify “Murmr Stream” is free of malware that may harm your Mac.")
+                .font(.system(size: 13)).foregroundStyle(Theme.inkMuted).fixedSize(horizontal: false, vertical: true)
+            Text("Done")
+                .font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.paper)
+                .frame(maxWidth: .infinity).padding(.vertical, 7)
+                .background(Capsule().fill(Theme.ink))
+        }
+        .padding(16)
+        .frame(width: 330)
+        .background(card.fill(Theme.paperRaised))
+        .overlay(card.strokeBorder(Theme.rule))
+    }
+
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach([("Appearance", false), ("Privacy & Security", true), ("Desktop & Dock", false)], id: \.0) { name, selected in
+                HStack(spacing: 10) {
+                    Image(systemName: selected ? "hand.raised.fill" : "circle.grid.2x2").font(.system(size: 14)).foregroundStyle(selected ? Theme.paper : Theme.inkMuted)
+                    Text(name).font(.system(size: 14, weight: selected ? .semibold : .regular)).foregroundStyle(selected ? Theme.paper : Theme.ink)
+                    Spacer()
+                }
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(selected ? Theme.ink : Color.clear))
+            }
+            Text("Security").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.ink).padding(.top, 8).padding(.horizontal, 12)
+        }
+        .padding(12)
+        .frame(width: 330)
+        .background(card.fill(Theme.paperRaised))
+        .overlay(card.strokeBorder(Theme.rule))
+    }
+
+    private var blockedRow: some View {
+        HStack {
+            Text("“Murmr Stream” was blocked\nto protect your Mac.").font(.system(size: 14)).foregroundStyle(Theme.ink)
+            Spacer(minLength: 12)
+            Text("Open Anyway")
+                .font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.ink)
+                .padding(.horizontal, 14).padding(.vertical, 7)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.paperSunken))
+                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.signal, lineWidth: 2))
+        }
+        .padding(16)
+        .frame(width: 330)
+        .background(card.fill(Theme.paperRaised))
+        .overlay(card.strokeBorder(Theme.rule))
+    }
+}

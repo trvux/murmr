@@ -34,7 +34,10 @@ that this free project does not pay yet). It is a one-time step:
 2. Open **System Settings → Privacy & Security** and scroll down to **Security**.
 3. Click **Open Anyway** next to "Murmr Stream was blocked", and confirm with your password or Touch ID.
 
-![The Open Anyway row in System Settings](docs/open-anyway.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/first-launch-dark.png">
+  <img src="docs/first-launch.png" alt="The three steps for the first launch: dismiss the warning, open Privacy &amp; Security, click Open Anyway" width="820">
+</picture>
 
 After that it opens like any other app, and a short welcome window walks through the permissions.
 

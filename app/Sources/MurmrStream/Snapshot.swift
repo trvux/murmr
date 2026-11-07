@@ -178,7 +178,7 @@ enum Snapshot {
         print(allOK ? "ALL OK" : "FAILED")
     }
 
-    enum Brand { case icon, dmgBackground, banner }
+    enum Brand { case icon, dmgBackground, banner, guide }
 
     /// Draws brand artwork to a PNG at 1x, and at 2x next to it (`name@2x.png`) for the disk-image background.
     /// Always in the light appearance, whatever the Mac is set to.
@@ -201,6 +201,8 @@ enum Snapshot {
             write(AppIconArt(), scale: 1, to: path)
         case .banner:
             write(BannerArt(), scale: 2, to: path)
+        case .guide:
+            write(GuideArt(), scale: 2, to: path)
         case .dmgBackground:
             write(DmgBackgroundArt(), scale: 1, to: path)
             write(DmgBackgroundArt(), scale: 2, to: path.replacingOccurrences(of: ".png", with: "@2x.png"))

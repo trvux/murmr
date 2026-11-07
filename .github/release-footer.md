@@ -8,7 +8,7 @@
    vào **System Settings → Privacy & Security**, kéo xuống mục **Security**, bấm **Open Anyway** cạnh dòng
    "Murmr Stream was blocked" và xác nhận bằng mật khẩu. (Trên macOS 14 cũng có thể bấm chuột phải vào app, chọn **Open**.)
 
-   ![Open Anyway](https://raw.githubusercontent.com/trvux/murmr/main/docs/open-anyway.png)
+   ![Ba bước mở lần đầu](https://raw.githubusercontent.com/trvux/murmr/main/docs/first-launch.png)
 3. Cấp các quyền khi macOS hỏi: Microphone, Input Monitoring, Accessibility.
 4. Lần mở đầu app tải hai model giọng nói (574 MB), cần mạng một lần.
 
