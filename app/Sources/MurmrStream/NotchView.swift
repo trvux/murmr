@@ -184,7 +184,7 @@ struct WaveView: View {
 
     var body: some View {
         switch style {
-        case .flock: FlockWave(levels: levels)
+        case .flock: FlockWave(level: level)
         case .line: LineWave(level: level)
         case .bars: MirrorBars(levels: levels)
         case .dots: DotWave(levels: levels)
@@ -194,80 +194,68 @@ struct WaveView: View {
     }
 }
 
-/// The brand's mark as a wave: one continuous drawn line made of the logo's wing-beat curves joined end to end (each a
-/// rounded arm that falls into a point, like the birds of the flock), so it keeps the logo's hand but is a single
-/// stroke. Silence leaves it a calm, nearly flat line; the voice lifts and deepens each beat and sends a ripple along
-/// it. It fades in from the left and ends in clay, and it is kept inside the frame, so no part is cut off.
+/// The brand's mark as a wave, behaving like the smooth-line style (three layers running at different speeds, tapering to
+/// nothing at both ends, an amplitude that follows the voice and reaches most of the row) but drawn in the logo's hand:
+/// instead of a sine, a chain of wing-beats, each a rounded arch that falls into a point (1 - 2|sin|). The main layer
+/// fades in from the left and ends in clay. The swing is capped inside the frame, so no arch is ever cut off.
 struct FlockWave: View {
-    let levels: [CGFloat]
+    let level: CGFloat
 
-    /// The line for the last `levels`, at time `t`, drawn into `size`. Pure, so it can be checked without a window.
-    static func path(levels: [CGFloat], size: CGSize, line: CGFloat, t: Double) -> Path {
-        // Every value is typed and every step is small: the older Swift compiler on GitHub's runner gives up on long
-        // mixed CGFloat/Double expressions.
-        let beats: Int = max(6, min(24, Int(size.width / 15)))
-        let step: Int = max(1, levels.count / beats)
-        let span: CGFloat = size.width / CGFloat(beats)
-        let margin: CGFloat = line / 2 + 0.5
-        let height: CGFloat = size.height
+    struct Layer {
+        let arches: Double  // how many beats fit across (twice this many arches)
+        let speed: Double
+        let opacity: Double
+        let lineWidth: CGFloat
+        let share: Double  // of the full swing
+    }
 
-        func level(_ j: Int) -> CGFloat {  // joint j sits between beat j - 1 and j; the newest sample is on the right
-            let back: Int = (beats - j) * step
-            let i: Int = max(0, min(levels.count - 1, levels.count - 1 - back))
-            let raw: CGFloat = levels.isEmpty ? 0 : levels[i]
-            let v: CGFloat = pow(raw, 0.7)
-            let phase: Double = t * 7 + Double(j) * 0.9
-            let shimmer: CGFloat = CGFloat(0.78 + 0.22 * sin(phase))  // a ripple running along the line
-            return min(1, v * shimmer)
+    static let layers: [Layer] = [
+        Layer(arches: 4.4, speed: 2.6, opacity: 1.0, lineWidth: 1.7, share: 1.0),
+        Layer(arches: 3.2, speed: -3.4, opacity: 0.5, lineWidth: 1.3, share: 0.7),
+        Layer(arches: 5.6, speed: 4.2, opacity: 0.28, lineWidth: 1.0, share: 0.5),
+    ]
+
+    /// One layer's line at time `t`. Pure, so it can be checked without a window. Short typed steps on purpose: the older
+    /// Swift compiler on GitHub's runner gives up on long mixed expressions.
+    static func path(layer: Layer, level: CGFloat, size: CGSize, t: Double) -> Path {
+        let midY: Double = Double(size.height) / 2
+        let limit: Double = midY - 1.5  // the most a point may move from the middle and still stay inside the frame
+        let amplitude: Double = 1.2 + pow(Double(level), 0.6) * (limit - 1.2)
+        let steps: Int = max(2, Int(size.width / 2))
+        var path = Path()
+        for s in 0...steps {
+            let x: Double = Double(s) / Double(steps)
+            let taper: Double = sin(x * Double.pi)  // zero at both ends
+            let phase: Double = x * 2 * Double.pi * layer.arches + t * layer.speed
+            let beat: Double = 1 - 2 * abs(sin(phase))  // +1 at the point (down), -1 at the top of the arch
+            let y: Double = midY + beat * amplitude * layer.share * taper
+            let point = CGPoint(x: x * Double(size.width), y: y)
+            if s == 0 { path.move(to: point) } else { path.addLine(to: point) }
         }
-        func clamp(_ y: CGFloat) -> CGFloat { min(max(y, margin), height - margin) }
-
-        let base: CGFloat = height / 2 + height * 0.12
-        let lift: CGFloat = height * 0.3
-        var joints: [CGFloat] = []
-        for j in 0...beats { joints.append(clamp(base - level(j) * lift)) }
-
-        var p = Path()
-        p.move(to: CGPoint(x: 0, y: joints[0]))
-        for k in 0..<beats {
-            let both: CGFloat = level(k) + level(k + 1)
-            let amp: CGFloat = min(1, 0.12 + both * 0.55)
-            let x0: CGFloat = CGFloat(k) * span
-            let x1: CGFloat = x0 + span
-            let xm: CGFloat = x0 + span / 2
-            let y0: CGFloat = joints[k]
-            let y1: CGFloat = joints[k + 1]
-            let dipY: CGFloat = clamp((y0 + y1) / 2 + span * 0.12 * amp)
-            // the arm rises into an arch before it falls into the point, as in the logo
-            func arch(_ from: CGFloat) -> CGFloat {
-                let wanted: CGFloat = (from + dipY) / 2 - span * 0.34 * amp
-                let top: CGFloat = (from + 2 * wanted + dipY) / 4  // where the curve actually peaks
-                if top < margin { return (4 * margin - from - dipY) / 2 }
-                return wanted
-            }
-            let c0 = CGPoint(x: x0 + span * 0.25, y: arch(y0))
-            let c1 = CGPoint(x: x0 + span * 0.75, y: arch(y1))
-            p.addQuadCurve(to: CGPoint(x: xm, y: dipY), control: c0)
-            p.addQuadCurve(to: CGPoint(x: x1, y: y1), control: c1)
-        }
-        return p
+        return path
     }
 
     var body: some View {
         TimelineView(.animation) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
+            let t: Double = context.date.timeIntervalSinceReferenceDate
             Canvas { gc, size in
-                let line: CGFloat = 1.7
-                let path = Self.path(levels: levels, size: size, line: line, t: t)
-                let stops: [Gradient.Stop] = [
-                    Gradient.Stop(color: Theme.pillInk.opacity(0.1), location: 0),
-                    Gradient.Stop(color: Theme.pillInk.opacity(0.95), location: 0.72),
-                    Gradient.Stop(color: Theme.pillInk, location: 0.86),
-                    Gradient.Stop(color: Theme.pillAccent, location: 0.9),
-                    Gradient.Stop(color: Theme.pillAccent, location: 1),
-                ]
-                let shading = GraphicsContext.Shading.linearGradient(Gradient(stops: stops), startPoint: .zero, endPoint: CGPoint(x: size.width, y: 0))
-                gc.stroke(path, with: shading, style: StrokeStyle(lineWidth: line, lineCap: .round, lineJoin: .round))
+                for (index, layer) in Self.layers.enumerated() {
+                    let path = Self.path(layer: layer, level: level, size: size, t: t)
+                    let style = StrokeStyle(lineWidth: layer.lineWidth, lineCap: .round, lineJoin: .round)
+                    if index == 0 {
+                        let stops: [Gradient.Stop] = [
+                            Gradient.Stop(color: Theme.pillInk.opacity(0.35), location: 0),
+                            Gradient.Stop(color: Theme.pillInk, location: 0.3),
+                            Gradient.Stop(color: Theme.pillInk, location: 0.84),
+                            Gradient.Stop(color: Theme.pillAccent, location: 0.9),
+                            Gradient.Stop(color: Theme.pillAccent, location: 1),
+                        ]
+                        let shading = GraphicsContext.Shading.linearGradient(Gradient(stops: stops), startPoint: .zero, endPoint: CGPoint(x: size.width, y: 0))
+                        gc.stroke(path, with: shading, style: style)
+                    } else {
+                        gc.stroke(path, with: .color(Theme.pillInk.opacity(layer.opacity)), style: style)
+                    }
+                }
             }
         }
     }
