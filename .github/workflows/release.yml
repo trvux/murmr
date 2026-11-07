@@ -1,5 +1,5 @@
 # Publishes a release when a version tag is pushed:  git tag v0.1.0 && git push origin v0.1.0
-# It builds the app on a clean machine, makes the .dmg, and creates the GitHub release with notes taken from
+# It builds the app on a clean GitHub-hosted Mac, makes the .dmg, and creates the GitHub release with notes taken from
 # CHANGELOG.md. The release is created as a DRAFT: only the owner sees it, so the .dmg can be downloaded and tried
 # before the "Publish release" button makes it public. The tag must match the VERSION file, so the page, the file name and the app all say the same number.
 name: Release
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-14
+    runs-on: macos-15 # the built app targets macOS 14 or later whatever machine builds it
     steps:
       - uses: actions/checkout@v4
         with:

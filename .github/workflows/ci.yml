@@ -1,5 +1,7 @@
-# On every push and pull request: build everything on a clean macOS 14 machine and run the checks.
+# On every push and pull request: build everything on a clean GitHub-hosted Mac and run the checks.
 # This is the answer to "does it build and start anywhere other than my laptop?"
+# The app is built to run on macOS 14 or later, but GitHub retired its macOS 14 runners on 2026-11-02, so macos-15 is the
+# oldest system it can be started on here.
 name: CI
 
 on:
@@ -9,7 +11,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14 # Apple Silicon, macOS 14: the oldest system the app claims to support
+    runs-on: macos-15 # Apple Silicon; the oldest hosted macOS that still exists
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,7 +37,7 @@ jobs:
           brew install cmake || true
           app/scripts/bundle.sh # ad-hoc signed: there is no certificate on the runner
 
-      - name: whisper-server starts on macOS 14
+      - name: whisper-server starts on a clean Mac
         run: '"app/build/Murmr Stream.app/Contents/Resources/whisper-server" --help 2>&1 | head -5'
 
       - name: App checks

@@ -36,7 +36,7 @@ the release page all follow it. 0.x releases are marked pre-release.
    the person installing. The release workflow takes that section as the release notes and fails if it is missing.
 2. Put `x.y.z` in `VERSION`. Commit ("Release x.y.z").
 3. The user pushes: `git push origin main` then `git tag vX.Y.Z && git push origin vX.Y.Z`.
-4. GitHub Actions (`.github/workflows/release.yml`) builds on macOS 14, makes the .dmg and its checksum, and creates a
+4. GitHub Actions (`.github/workflows/release.yml`) builds on a macos-15 runner (macos-14 runners were retired 2026-11-02), makes the .dmg and its checksum, and creates a
    **draft** release. Check it on the Releases page, download the .dmg in a browser (this adds the quarantine flag, the
    same as for a stranger), drag it to Applications and open it, then press **Publish release**.
 5. A wrong release: delete the draft and the tag (`git push origin :vX.Y.Z`), fix, tag again.

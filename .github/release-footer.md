@@ -12,6 +12,6 @@
 
 Open the `.dmg` below, drag **Murmr Stream** into **Applications**. The first launch is blocked by Gatekeeper because
 the app is not notarized: open **System Settings → Privacy & Security** and click **Open Anyway**.
-Needs a Mac with Apple Silicon and macOS 14 or later.
+Needs a Mac with Apple Silicon and macOS 14 or later (built for 14; tested on macOS 15 and later).
 
 Checksum: `shasum -a 256 -c Murmr-Stream-<version>.dmg.sha256` (file in Assets). Privacy: [PRIVACY.md](https://github.com/trvux/murmr/blob/main/PRIVACY.md).

@@ -18,7 +18,7 @@ hold RIGHT Option -> microphone (16 kHz)
 Get the latest build from the [Releases page](https://github.com/trvux/murmr/releases): open the `.dmg`, drag
 **Murmr Stream** into Applications. Every version has its own page with notes of what changed (they come from
 [CHANGELOG.md](CHANGELOG.md)) and a checksum. The first launch needs an extra step because the app is not notarized
-by Apple yet; the release page explains it. Needs Apple Silicon and macOS 14 or later.
+by Apple yet; the release page explains it. Needs Apple Silicon and macOS 14 or later (built for 14; tested on macOS 15 and later, there is no Mac on 14 to try it on).
 
 ## What it does
 
