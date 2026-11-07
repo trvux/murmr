@@ -16,7 +16,7 @@ The first public build.
 ### Added
 - Hold a key, speak, release: the text is pasted into the app you are using. The key is yours to choose (the right
   Option by default): another modifier on its own, a function key, or a combination, set in the welcome window or in
-  Settings and changed at once. Speech recognition
+  Settings and changed at once (the welcome window asks you to pick it, it does not pick for you). Speech recognition
   runs on your Mac (Whisper large-v3-turbo with voice-activity detection), built for Vietnamese mixed with English.
 - AI cleanup of the text (fillers, punctuation, mis-heard terms, pronouns) with the service you choose: DeepSeek,
   Claude, OpenAI, Gemini, Kimi, OpenRouter, Ollama on your own machine, or any OpenAI-compatible address.
@@ -43,6 +43,10 @@ The first public build.
 - Optional pronunciation practice from the terminal (`murmr drill`, `murmr score`).
 
 ### Fixed
+- Permissions: pressing "Cho phép" did nothing when macOS had already decided (it only asks once), and a switch that
+  was already on from another build still read "not granted". The button now opens the right page in System Settings,
+  the window says how to clear an old entry, and it warns when the app runs from the installer or a temporary copy,
+  where permissions do not stick.
 - Choosing the dictation key: a modifier pressed on its own (right Option, left Command, fn) was not noticed, so the
   box stayed on "Nhấn phím…". Modifiers are now read from the system, presses in the first moments are ignored, and
   "Đặt lại" is there while choosing too.

@@ -499,20 +499,24 @@ struct DataRow: View {
 struct HoldKeyField: View {
     @ObservedObject var state: AppState
     @ObservedObject var capture: HoldKeyCapture
+    /// The person has not picked a key yet (first launch): the box asks instead of showing one.
+    var unchosen = false
+    var onPicked: () -> Void = {}
 
     var body: some View {
         HStack(spacing: Theme.Space.m) {
-            if !state.holdKey.isStandard || capture.listening {
+            if (!state.holdKey.isStandard && !unchosen) || capture.listening {
                 Button("Đặt lại") {
                     capture.stop()
                     state.setHoldKey(.standard)
+                    onPicked()
                 }
                     .buttonStyle(.plain)
                     .font(Theme.Typeface.caption)
                     .foregroundStyle(Theme.inkMuted)
             }
             Button(action: toggle) {
-                Text(capture.listening ? "Nhấn phím…" : state.holdKey.label)
+                Text(capture.listening ? "Nhấn phím…" : (unchosen ? "Chọn phím" : state.holdKey.label))
                     .font(Theme.Typeface.mono)
                     .foregroundStyle(capture.listening ? Theme.signal : Theme.ink)
                     .padding(.horizontal, Theme.Space.m)
@@ -533,7 +537,10 @@ struct HoldKeyField: View {
         if capture.listening {
             capture.stop()
         } else {
-            capture.start(onActive: { state.setKeyCapturing($0) }) { key in state.setHoldKey(key) }
+            capture.start(onActive: { state.setKeyCapturing($0) }) { key in
+                state.setHoldKey(key)
+                onPicked()
+            }
         }
     }
 }

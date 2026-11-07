@@ -10,14 +10,18 @@ struct WelcomeView: View {
     var openAISettings: () -> Void = {}
     var finish: () -> Void = {}
     @State private var step: Step
+    @State private var asking: Bool  // the person has not picked their key yet
     @StateObject private var capture = HoldKeyCapture()
 
-    init(state: AppState, permissions: Permissions, initialStep: Step = .hello, openAISettings: @escaping () -> Void = {}, finish: @escaping () -> Void = {}) {
+    /// `askKey`: show the key as a question (first launch) instead of a key already chosen for them.
+    init(state: AppState, permissions: Permissions, initialStep: Step = .hello, askKey: Bool = !HoldKey.chosen,
+         openAISettings: @escaping () -> Void = {}, finish: @escaping () -> Void = {}) {
         self.state = state
         self.permissions = permissions
         self.openAISettings = openAISettings
         self.finish = finish
         _step = State(initialValue: initialStep)
+        _asking = State(initialValue: askKey)
     }
 
     var body: some View {
@@ -26,6 +30,7 @@ struct WelcomeView: View {
                 Mascot(mood: mood, size: 128)
                     .frame(height: 128)
                     .padding(.top, Theme.Space.xl)
+                if AppLocation.isTemporary && (step == .hello || step == .permissions) { movedNotice }
                 content
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -81,24 +86,59 @@ struct WelcomeView: View {
         VStack(spacing: Theme.Space.xl) {
             heading("Xin chào", "Murmr Stream chép lời bạn nói và dán vào đúng app bạn đang dùng.")
             VStack(alignment: .leading, spacing: Theme.Space.m) {
+                HStack(spacing: Theme.Space.l) {
+                    demoStep("1", "Giữ phím")
+                    demoStep("2", "Nói")
+                    demoStep("3", "Thả ra, chữ hiện ra")
+                }
                 HStack(spacing: Theme.Space.m) {
-                    HoldKeyField(state: state, capture: capture)
-                    Text(capture.message ?? (capture.listening
-                         ? "Nhấn phím hoặc tổ hợp bạn muốn. Nhấn Esc để huỷ."
-                         : "Giữ phím này, nói, rồi thả ra. Bấm vào phím để đổi sang phím bạn thích."))
+                    HoldKeyField(state: state, capture: capture, unchosen: asking, onPicked: { asking = false })
+                    Text(capture.message ?? keyPrompt)
                         .font(Theme.Typeface.body)
                         .foregroundStyle(capture.message == nil ? Theme.ink : Theme.signal)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                if let note = state.holdKey.note {
+                if asking && !capture.listening {
+                    Button("Dùng \(HoldKey.standard.label)") {
+                        state.setHoldKey(.standard)
+                        asking = false
+                    }
+                    .buttonStyle(.plain)
+                    .font(Theme.Typeface.caption)
+                    .foregroundStyle(Theme.signal)
+                }
+                if !asking, let note = state.holdKey.note {
                     Text(note).font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted).fixedSize(horizontal: false, vertical: true)
                 }
                 bullet("Giọng nói được xử lý ngay trên máy bạn.")
                 bullet("Khoá AI (nếu bạn thêm) nằm trong Keychain, không gửi về máy chủ nào của chúng tôi.")
                 bullet("Lần đầu mở, app tải thêm mô hình giọng nói. Chỉ một lần.")
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, Theme.Space.s)
         }
+    }
+
+    private var keyPrompt: String {
+        if capture.listening { return "Nhấn phím hoặc tổ hợp bạn muốn. Nhấn Esc để huỷ." }
+        if asking { return "Bạn chọn phím để nói. Bấm vào ô này rồi nhấn phím hoặc tổ hợp bạn muốn." }
+        return "Giữ phím này, nói, rồi thả ra. Bấm vào phím để đổi sang phím bạn thích."
+    }
+
+    private func demoStep(_ number: String, _ text: String) -> some View {
+        HStack(spacing: Theme.Space.s) {
+            Text(number).font(Theme.Typeface.mono).foregroundStyle(Theme.signal)
+            Text(text).font(Theme.Typeface.caption).foregroundStyle(Theme.ink)
+        }
+    }
+
+    /// Shown while the app runs from the installer or a temporary copy: permissions would not stick there.
+    private var movedNotice: some View {
+        Text("Murmr Stream đang chạy từ ổ cài đặt hoặc một bản sao tạm của macOS. Thoát app, kéo nó vào Applications rồi mở từ đó, nếu không các quyền sẽ không được lưu.")
+            .font(Theme.Typeface.caption)
+            .foregroundStyle(Theme.signal)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var permissionsStep: some View {
@@ -124,6 +164,12 @@ struct WelcomeView: View {
             VStack(alignment: .leading, spacing: Theme.Space.xs) {
                 Text(kind.title).font(Theme.Typeface.bodyStrong).foregroundStyle(Theme.ink)
                 Text(kind.why).font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted).fixedSize(horizontal: false, vertical: true)
+                if permissions.needHelp.contains(kind) && state != .granted {
+                    Text("Trong Cài đặt đã bật mà vẫn báo chưa cấp? Bấm dấu − để xoá Murmr Stream khỏi danh sách, rồi bấm + thêm lại. macOS gắn quyền với từng bản app, nên bản cài mới có thể cần cấp lại.")
+                        .font(Theme.Typeface.caption)
+                        .foregroundStyle(Theme.signal)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: Theme.Space.m)
             if state == .granted {
@@ -186,7 +232,8 @@ struct WelcomeView: View {
 
     private var canContinue: Bool {
         switch step {
-        case .hello, .ready: return true
+        case .hello: return !asking
+        case .ready: return true
         case .permissions: return permissions.allGranted
         case .prepare: return state.engineReady
         }

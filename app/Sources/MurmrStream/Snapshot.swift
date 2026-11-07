@@ -62,7 +62,9 @@ enum Snapshot {
 
     /// The welcome window, one step per name (`welcome1` ... `welcome4`), with made-up permission and loading states.
     private static func runWelcome(name: String, path: String, dark: Bool) {
-        let index = max(1, min(4, Int(name.dropFirst("welcome".count)) ?? 1)) - 1
+        let index = max(1, min(4, Int(name.dropFirst("welcome".count).prefix(1)) ?? 1)) - 1
+        AppLocation.previewTemporary = name.hasSuffix("moved")
+        let askKey = !name.hasSuffix("picked")  // `welcome1picked`: the first step after the person chose a key
         let step = WelcomeView.Step(rawValue: index) ?? .hello
         let state = AppState()
         if step == .prepare {
@@ -75,7 +77,7 @@ enum Snapshot {
             ? [.microphone: .granted, .inputMonitoring: .notAsked, .accessibility: .denied]
             : Dictionary(uniqueKeysWithValues: PermissionKind.allCases.map { ($0, PermissionState.granted) }))
         let size = CGSize(width: 560, height: 660)
-        let host = NSHostingView(rootView: WelcomeView(state: state, permissions: permissions, initialStep: step).frame(width: size.width, height: size.height))
+        let host = NSHostingView(rootView: WelcomeView(state: state, permissions: permissions, initialStep: step, askKey: askKey).frame(width: size.width, height: size.height))
         host.frame = CGRect(origin: .zero, size: size)
         let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
@@ -401,6 +403,13 @@ enum Snapshot {
               [HoldKey.standard, HoldKey(spec: "mod:55", label: "x"), HoldKey(spec: "mod:63", label: "x"), HoldKey(spec: "combo:49:c0000", label: "x")]
                 .compactMap(\.note).allSatisfy { !$0.lowercased().contains("raycast") })
         check("choosing ignores the first moments, so the click that began it cannot be taken as the key", HoldKeyCapture.settle >= 0.2)
+        check("a mounted installer or a temporary copy is not a place to keep permissions",
+              AppLocation.isTemporary("/Volumes/Murmr Stream 0.1.0/Murmr Stream.app")
+              && AppLocation.isTemporary("/private/var/folders/3f/T/AppTranslocation/84D7/d/Murmr Stream.app"))
+        check("Applications and a build folder are fine",
+              !AppLocation.isTemporary("/Applications/Murmr Stream.app") && !AppLocation.isTemporary("/Users/x/murmr/app/build/Murmr Stream.app"))
+        check("macOS shows its dialog only while it has not decided",
+              Permissions.dialogWillShow(.notAsked) && !Permissions.dialogWillShow(.denied) && !Permissions.dialogWillShow(.granted))
         check("every key has a note or none, never an empty one", [HoldKey.standard, HoldKey(spec: "mod:55", label: "⌘ trái"), HoldKey(spec: "combo:49:c0000", label: "x")].allSatisfy { $0.note?.isEmpty != true })
 
         // --- Keychain wrapper on a throw-away service

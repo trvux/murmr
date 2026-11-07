@@ -45,6 +45,14 @@ enum PermissionKind: CaseIterable, Identifiable {
     }
 }
 
+/// Where the app is running from. macOS ties a permission to one app in one place: from a mounted installer or a
+/// temporary copy it makes for a downloaded app (AppTranslocation), what the person grants does not stick.
+enum AppLocation {
+    static func isTemporary(_ path: String) -> Bool { path.contains("/AppTranslocation/") || path.hasPrefix("/Volumes/") }
+    nonisolated(unsafe) static var previewTemporary = false  // the offscreen snapshots show the notice
+    static var isTemporary: Bool { previewTemporary || isTemporary(Bundle.main.bundlePath) }
+}
+
 enum PermissionState: Equatable {
     case granted
     case notAsked  // macOS has not asked yet: asking shows its own dialog
@@ -54,12 +62,16 @@ enum PermissionState: Equatable {
 @MainActor
 final class Permissions: ObservableObject {
     @Published private(set) var states: [PermissionKind: PermissionState] = [:]
+    /// Permissions the person was sent to System Settings for: the welcome window then explains what to do if the switch
+    /// is already on and the app still says "not granted" (an old entry, from another build of the app).
+    @Published private(set) var needHelp: Set<PermissionKind> = []
     private var timer: Timer?
     private let preview: [PermissionKind: PermissionState]?
 
     /// `preview` fixes the states, for the offscreen snapshots; it never touches the real permissions.
     init(preview: [PermissionKind: PermissionState]? = nil) {
         self.preview = preview
+        needHelp = Set((preview ?? [:]).filter { $0.value == .denied }.keys)  // previews show the hint a stuck row gets
         refresh()
     }
 
@@ -84,9 +96,18 @@ final class Permissions: ObservableObject {
         if now != states { states = now }
     }
 
-    /// Shows macOS's own dialog for this permission (it appears once; afterwards use `openSettings`).
+    /// macOS asks only while it has not decided; afterwards asking does nothing at all.
+    static func dialogWillShow(_ state: PermissionState) -> Bool { state == .notAsked }
+
+    /// Shows macOS's own dialog for this permission. When macOS has already decided, a dialog would never come (the
+    /// button would look dead), so the person goes straight to the page in System Settings.
     func request(_ kind: PermissionKind) {
         guard preview == nil else { return }
+        refresh()
+        if kind != .accessibility && !Self.dialogWillShow(state(kind)) {
+            openSettings(kind)
+            return
+        }
         switch kind {
         case .microphone:
             AVCaptureDevice.requestAccess(for: .audio) { [weak self] _ in Task { @MainActor in self?.refresh() } }
@@ -100,6 +121,7 @@ final class Permissions: ObservableObject {
 
     func openSettings(_ kind: PermissionKind) {
         guard preview == nil, let url = URL(string: kind.settingsURL) else { return }
+        needHelp.insert(kind)
         NSWorkspace.shared.open(url)
     }
 

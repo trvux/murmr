@@ -15,9 +15,13 @@ struct HoldKey: Equatable {
         return HoldKey(spec: spec, label: label)
     }
 
+    /// Whether the person has picked their key (the welcome window asks once instead of assuming one).
+    nonisolated static var chosen: Bool { UserDefaults.standard.bool(forKey: "holdKeyChosen") }
+
     func save() {
         UserDefaults.standard.set(spec, forKey: "holdKeySpec")
         UserDefaults.standard.set(label, forKey: "holdKeyLabel")
+        UserDefaults.standard.set(true, forKey: "holdKeyChosen")
     }
 
     var isStandard: Bool { spec == Self.standard.spec }
