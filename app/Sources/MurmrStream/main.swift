@@ -4,6 +4,14 @@ import AppKit
 // run() blocks, so `delegate` stays alive for the whole session (NSApplication only holds it weakly).
 MainActor.assumeIsolated {
     let app = NSApplication.shared
+    if let i = CommandLine.arguments.firstIndex(of: "--app-icon"), CommandLine.arguments.count > i + 1 {
+        Snapshot.renderBrand(.icon, to: CommandLine.arguments[i + 1])
+        return
+    }
+    if let i = CommandLine.arguments.firstIndex(of: "--dmg-background"), CommandLine.arguments.count > i + 1 {
+        Snapshot.renderBrand(.dmgBackground, to: CommandLine.arguments[i + 1])
+        return
+    }
     if CommandLine.arguments.contains("--models-check") {
         Snapshot.modelsCheck()
         return

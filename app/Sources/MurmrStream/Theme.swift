@@ -405,3 +405,61 @@ struct MenuField<Content: View>: View {
         .menuIndicator(.hidden)
     }
 }
+
+// MARK: - Brand artwork (rendered to files by `MurmrStream --app-icon` and `--dmg-background`)
+
+/// The app icon: the typographic mark ("Murmr" is set in the serif) reduced to its initial, in paper on ink, with a
+/// small clay pill beneath it, the same pill the notch grows. macOS icons are an 824 pt body inside a 1024 pt canvas.
+struct AppIconArt: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 184, style: .continuous)
+                .fill(Theme.ink)
+                .frame(width: 824, height: 824)
+            VStack(spacing: 34) {
+                Text("M")
+                    .font(.system(size: 560, weight: .semibold, design: .serif))
+                    .foregroundStyle(Theme.paper)
+                    .frame(height: 430)
+                Capsule()
+                    .fill(Theme.signal)
+                    .frame(width: 176, height: 46)
+            }
+            .offset(y: -6)
+        }
+        .frame(width: 1024, height: 1024)
+    }
+}
+
+/// The picture behind the two icons in the disk image: where to drag, and the one extra step the first launch needs.
+struct DmgBackgroundArt: View {
+    static let size = CGSize(width: 660, height: 400)
+
+    var body: some View {
+        ZStack {
+            Theme.paper
+            VStack(spacing: 0) {
+                Text("Kéo Murmr Stream vào Applications")
+                    .font(.system(size: 21, weight: .semibold, design: .serif))
+                    .foregroundStyle(Theme.ink)
+                    .padding(.top, 38)
+                Spacer()
+                Text("Lần đầu mở, macOS sẽ chặn vì app chưa được Apple công chứng.\nVào System Settings → Privacy & Security → Open Anyway.")
+                    .font(.system(size: 12))
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(Theme.inkMuted)
+                    .padding(.bottom, 30)
+            }
+            // a thin arrow from where the app sits (x 180) to where Applications sits (x 480), on the icons' centre line
+            Path { p in
+                p.move(to: CGPoint(x: 262, y: 190))
+                p.addLine(to: CGPoint(x: 398, y: 190))
+                p.move(to: CGPoint(x: 386, y: 180))
+                p.addLine(to: CGPoint(x: 398, y: 190))
+                p.addLine(to: CGPoint(x: 386, y: 200))
+            }
+            .stroke(Theme.inkFaint, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+        }
+        .frame(width: Self.size.width, height: Self.size.height)
+    }
+}

@@ -40,6 +40,16 @@ jobs:
       - name: whisper-server starts on a clean Mac
         run: '"app/build/Murmr Stream.app/Contents/Resources/whisper-server" --help 2>&1 | head -5'
 
+      - name: The installer (.dmg) builds
+        run: app/scripts/make-dmg.sh
+
+      - name: Keep the .dmg so it can be downloaded and tried without making a release
+        uses: actions/upload-artifact@v4
+        with:
+          name: Murmr-Stream-dmg
+          path: app/build/Murmr-Stream-*.dmg
+          retention-days: 7
+
       - name: App checks
         run: |
           app/scripts/design-lint.sh

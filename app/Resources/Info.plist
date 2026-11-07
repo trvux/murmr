@@ -8,6 +8,8 @@
 	<string>Murmr Stream</string>
 	<key>CFBundleIdentifier</key>
 	<string>dev.trvux.murmr-stream</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleExecutable</key>
 	<string>MurmrStream</string>
 	<key>CFBundlePackageType</key>

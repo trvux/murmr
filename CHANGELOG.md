@@ -26,6 +26,7 @@ The first public build.
   Appearance, General.
 - `whisper-server` is built into the app, and the two speech models (574 MB in total) download on first launch,
   resumable and checked against a fixed checksum. Nothing to install first.
+- An app icon, and an installer window that shows where to drag the app and how to open it the first time.
 - Optional pronunciation practice from the terminal (`murmr drill`, `murmr score`).
 
 ### Fixed
