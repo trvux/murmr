@@ -68,6 +68,38 @@ echo 'export DEEPSEEK_API_KEY=...' > ~/.config/murmr/env && chmod 600 ~/.config/
 macOS will ask for **Microphone**, **Input Monitoring** (the Option key) and **Accessibility** (pasting)
 for your terminal. Without a cleanup key it still works, with raw Whisper output.
 
+## macOS app
+
+`app/` is a menu-bar app (Swift, SwiftUI, no Xcode needed) that runs the Go engine and draws the
+state on the notch: a black pill grows out of it while you hold the key, shows a slim wave that
+follows your voice, then "Đang chép lời" / "Đang dọn văn", then the pasted text. On a screen without a
+notch it floats under the top edge.
+
+```sh
+app/scripts/bundle.sh                 # builds the engine and "Murmr Stream.app" into app/build/
+open "app/build/Murmr Stream.app"
+```
+
+- **Permissions.** The app asks for Microphone, Input Monitoring (the Option key) and Accessibility
+  (pasting). With ad-hoc signing macOS forgets them on every rebuild; to keep them, create a self-signed
+  code-signing certificate in your keychain and build with `MURMR_SIGN_ID="<its name>" app/scripts/bundle.sh`.
+- **Settings** (menu bar icon, "Cài đặt…"): choose the wave style (five, shown side by side), the notch
+  corner shape, and see the engine status. It is built to grow with more pages.
+- **Logs** go to `~/Library/Logs/Murmr Stream/engine.log`. The dictated text is never written there.
+- Only one engine can run at a time (they share port 8178, the microphone and the key), so quit
+  `./run.sh` before opening the app.
+- Live captions while you speak exist but are off by default (`MURMR_PREVIEW=on`): they need a second,
+  faster Whisper server (about 600 MB more RAM) and only update about every 0.6 s, because Whisper
+  encodes a fixed window per decode.
+
+Not notarized yet, so a downloaded build will trigger macOS's unidentified-developer warning.
+
+### Design
+
+The look is a deliberate system, not defaults: read [DESIGN.md](DESIGN.md). All visual values live in
+`app/Sources/MurmrStream/Theme.swift`, `app/scripts/design-lint.sh` rejects raw values and banned patterns,
+and `MurmrStream --snapshot <appearance|general|pills> out.png [dark]` renders the UI offscreen to check it.
+
 ## Commands
 
 | Command | What it does |
@@ -127,6 +159,7 @@ Set in `~/.config/murmr/env` (all optional except a cleanup key if you want clea
 | `MURMR_VAD` / `MURMR_VAD_MODEL` | on / `models/ggml-silero-v5.1.2.bin` | `MURMR_VAD=off` disables VAD |
 | `MURMR_HISTORY` | on | `off` stops writing `history.jsonl` |
 | `MURMR_CONFIDENCE` | off | `on` adds per-word confidence, costs about 0.8 s per dictation |
+| `MURMR_PREVIEW` / `MURMR_PREVIEW_PORT` | off / `8179` | `on` starts the second server for live captions (app shell only) |
 | `MURMR_SOUND_START/STOP/READY` | `Tink`/`Pop`/`Glass` | macOS system sound names, or `off` |
 | `MURMR_DICT`, `MURMR_PORT`, `MURMR_SAVE` | | dictionary path, whisper-server port, directory to save clips |
 
