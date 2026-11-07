@@ -23,6 +23,9 @@ struct EngineEvent: Decodable {
     var text: String?
     var reason: String?
     var msg: String?
+    var name: String?  // on "download": which model
+    var done: Double?
+    var total: Double?
     var note: String?  // on "done": for example that the backup AI service answered
 }
 
@@ -41,6 +44,9 @@ final class AppState: ObservableObject {
     /// estimate (the engine does not know how long Whisper takes to load), so it creeps during that step.
     @Published var loadStage = ""  // "" when not loading
     @Published var loadProgress: Double = 0
+    /// What the startup bar says instead of the step name while something specific is going on (a download).
+    @Published var loadDetail: String?
+    private var downloadFraction: Double?  // 0...1 while the first-run model download is running
 
     var isLoading: Bool { !loadStage.isEmpty }
 
@@ -59,7 +65,18 @@ final class AppState: ObservableObject {
         case "loading":
             loadStage = ev.stage ?? ""
             stageStartedAt = Date()
+            loadDetail = nil
             engineStatus = Self.loadText(loadStage) + "…"
+        case "download":
+            // First launch only: the speech models are fetched. Real progress, not an estimate.
+            if let done = ev.done, let total = ev.total, total > 0 {
+                if ev.name == "whisper" { downloadFraction = min(1, done / total) }  // the 0.9 MB voice-detection model is not worth a bar of its own
+                loadStage = "models"
+                loadDetail = ev.name == "whisper"
+                    ? "Đang tải model giọng nói · \(Int(done / 1_000_000)) / \(Int(total / 1_000_000)) MB"
+                    : "Đang tải model nhận biết tiếng nói"
+                engineStatus = loadDetail ?? ""
+            }
         case "ready":
             engineReady = true
             engineStatus = "Sẵn sàng · giữ Option phải để nói"
@@ -100,6 +117,7 @@ final class AppState: ObservableObject {
         switch stage {
         case "starting": return "Đang khởi động"
         case "dictionary": return "Đang nạp từ điển"
+        case "models": return "Đang kiểm tra model giọng nói"
         case "whisper": return "Đang nạp model Whisper"
         case "audio": return "Đang mở micro"
         case "keys": return "Đang bật phím nói"
@@ -114,6 +132,8 @@ final class AppState: ObservableObject {
         engineReady = false
         loadStage = "starting"
         loadProgress = 0
+        loadDetail = nil
+        downloadFraction = nil
         stageStartedAt = Date()
         engineStatus = Self.loadText("starting") + "…"
         loadTask?.cancel()
@@ -131,6 +151,7 @@ final class AppState: ObservableObject {
         loadTask?.cancel()
         loadStage = ""
         loadProgress = 0
+        loadDetail = nil
     }
 
     private func finishLoading() {
@@ -141,15 +162,19 @@ final class AppState: ObservableObject {
             self.loadTask?.cancel()
             self.loadStage = ""
             self.loadProgress = 0
+            self.loadDetail = nil
         }
     }
 
     private func loadTarget() -> Double {
         switch loadStage {
         case "starting": return 0.04
-        case "dictionary": return 0.08
-        case "whisper":  // about 8 s on a cold start: creep from 10% to 88% over that time, never past it
-            return min(0.88, 0.10 + 0.78 * Date().timeIntervalSince(stageStartedAt) / 8)
+        case "dictionary": return 0.06
+        case "models":  // a download fills up to 60% with its real progress; with nothing to download it passes at once
+            return 0.08 + 0.52 * (downloadFraction ?? 0)
+        case "whisper":  // about 8 s on a cold start: creep over that time, never past 88%
+            let start = downloadFraction == nil ? 0.10 : 0.62
+            return min(0.88, start + (0.88 - start) * Date().timeIntervalSince(stageStartedAt) / 8)
         case "audio": return 0.92
         case "keys": return 0.96
         default: return loadStage.isEmpty ? 0 : 1

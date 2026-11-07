@@ -72,14 +72,26 @@ Quit the app, then delete:
 
 - `~/.config/murmr/` (dictionary, app rules, history, old env file)
 - `~/Library/Logs/Murmr Stream/`
+- `~/Library/Application Support/Murmr Stream/` (the downloaded speech models)
 - the Keychain items under the service `dev.trvux.murmr-stream` (Keychain Access, or Settings, "AI và khoá API",
   "Xoá khoá")
 - the app's preferences (`defaults delete dev.trvux.murmr-stream`)
 
 ## Downloads
 
-*To be completed when first-run model download is added:* the Whisper model and the voice-activity model are
-fetched from Hugging Face on first launch.
+On first launch the app downloads two speech models, because they are too large to ship inside it:
+
+| File | Size | From |
+|---|---|---|
+| `ggml-large-v3-turbo-q5_0.bin` (Whisper) | 574 MB | `huggingface.co/ggerganov/whisper.cpp` |
+| `ggml-silero-v5.1.2.bin` (voice detection) | 0.9 MB | `huggingface.co/ggml-org/whisper-vad` |
+
+Hugging Face redirects the download to its content network (`*.hf.co`). The request is an ordinary HTTPS GET
+that carries no key, no account and no dictated text; the servers can see your IP address and the app name
+`Murmr-Stream`, as with any download. Each file is checked against a fixed SHA-256 and size before it is used, and
+an interrupted download resumes where it stopped. The files go to
+`~/Library/Application Support/Murmr Stream/models/` and are deleted with that folder. This is the only
+time the app downloads anything; `./murmr fetch-models` does the same from a terminal.
 
 ## Terms of use
 

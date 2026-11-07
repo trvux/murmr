@@ -124,6 +124,7 @@ and `MurmrStream --snapshot <dictionary|apps|ai|appearance|general|pills> out.pn
 | `./murmr report` | recurring mishearings found in your history |
 | `./murmr forget "<heard text>"` | stop using a learned hint |
 | `./murmr hints` | the learned "heard => meant" pairs as JSON (what the Settings window shows) |
+| `./murmr fetch-models` | download the two speech models now (the app does it on first launch) |
 | `./murmr providers` | the services the engine knows, as JSON (what the AI page draws) |
 | `./murmr models <id>` | the models a service offers for your key, as JSON (what the model menu shows) |
 | `./murmr styles` | the apps and their pronoun style as JSON (what the Ứng dụng page shows) |
@@ -191,8 +192,9 @@ Set in `~/.config/murmr/env` (all optional except a cleanup key if you want clea
 | `<SERVICE>_MODEL` | per service | model name, e.g. `DEEPSEEK_MODEL`, `ANTHROPIC_MODEL`, `OPENAI_MODEL` (the Settings choice wins) |
 | `MURMR_CLEANUP` | auto | a service id (`deepseek`, `claude`, `openai`...) or `none` |
 | `MURMR_FALLBACK` | off | a service id: if the chosen service fails or takes over 6 s, try this one (needs its own key; sends the text there) |
-| `MURMR_MODEL` | `models/ggml-large-v3-turbo-q5_0.bin` | Whisper model path |
-| `MURMR_VAD` / `MURMR_VAD_MODEL` | on / `models/ggml-silero-v5.1.2.bin` | `MURMR_VAD=off` disables VAD |
+| `MURMR_MODEL` | downloaded | path of your own Whisper model; used as is, never downloaded |
+| `MURMR_VAD` / `MURMR_VAD_MODEL` | on / downloaded | `MURMR_VAD=off` disables VAD; the second is your own VAD model |
+| `MURMR_MODELS_DIR` | `~/Library/Application Support/Murmr Stream/models` | where downloaded models go (a `./models/` folder in the working directory is used first, for source checkouts) |
 | `MURMR_HISTORY` | on | `off` stops writing `history.jsonl` |
 | `MURMR_CONFIDENCE` | off | `on` adds per-word confidence, costs about 0.8 s per dictation |
 | `MURMR_PREVIEW` / `MURMR_PREVIEW_PORT` | off / `8179` | `on` starts the second server for live captions (app shell only) |

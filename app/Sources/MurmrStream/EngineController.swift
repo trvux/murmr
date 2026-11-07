@@ -46,12 +46,20 @@ final class EngineController {
         try? logHandle?.write(contentsOf: Data("\(stamp) \(message)\n".utf8))
     }
 
-    /// Where the models and the project live. The engine runs with this as its working directory.
+    /// The engine's working directory. MURMR_HOME if set; else the source checkout, when there is one (it keeps
+    /// its own models/ folder); else the app's folder in Application Support, which always exists for a user who
+    /// only has the downloaded app.
     static var homeDir: String { homeDirPath }
 
     /// The same path without main-actor isolation, for background work (running `murmr hints`).
     nonisolated static var homeDirPath: String {
-        ProcessInfo.processInfo.environment["MURMR_HOME"] ?? NSHomeDirectory() + "/Documents/murmr"
+        if let home = ProcessInfo.processInfo.environment["MURMR_HOME"] { return home }
+        let checkout = NSHomeDirectory() + "/Documents/murmr"
+        var isDir: ObjCBool = false
+        if FileManager.default.fileExists(atPath: checkout + "/models", isDirectory: &isDir), isDir.boolValue { return checkout }
+        let support = NSHomeDirectory() + "/Library/Application Support/Murmr Stream"
+        try? FileManager.default.createDirectory(atPath: support, withIntermediateDirectories: true)
+        return support
     }
 
     nonisolated static func locateEngine() -> String? {
@@ -65,19 +73,35 @@ final class EngineController {
 
     private func enginePath() -> String? { Self.locateEngine() }
 
+    private var starting = false
+
     func start() {
+        guard !starting, process == nil else { return }
         guard let exe = enginePath() else {
             state.engineStatus = "Không tìm thấy engine murmr (build bằng go build -o murmr .)"
             state.setPhase(.error("Không tìm thấy engine"), resetAfter: 5)
             return
         }
+        starting = true
+        state.beginLoading()
+        // Reading the Keychain can take several seconds the first time after the app was rebuilt (macOS re-checks
+        // the new binary's signature for each item), so it must not block the main thread.
+        Task { [weak self] in
+            let keys = await Task.detached { AISettings.engineEnvironment() }.value
+            self?.launch(exe: exe, keys: keys)
+        }
+    }
+
+    private func launch(exe: String, keys: [String: String]) {
+        starting = false
+        if quitting { return }
         let p = Process()
         p.executableURL = URL(fileURLWithPath: exe)
         p.currentDirectoryURL = URL(fileURLWithPath: Self.homeDir)
 
         var env = ProcessInfo.processInfo.environment
         env.merge(EnvFile.load(NSHomeDirectory() + "/.config/murmr/env")) { _, new in new }
-        env.merge(AISettings.engineEnvironment()) { _, new in new }  // keys saved in the Keychain win over the old env file
+        env.merge(keys) { _, new in new }  // keys saved in the Keychain win over the old env file
         env["MURMR_EVENTS"] = "1"
         // A GUI app does not inherit the shell PATH; whisper-server lives in Homebrew's bin.
         env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + (env["PATH"] ?? "/usr/bin:/bin")
@@ -109,6 +133,7 @@ final class EngineController {
         } catch {
             log("could not start engine: \(error.localizedDescription)")
             state.engineStatus = "Không chạy được engine: \(error.localizedDescription)"
+            state.failLoading()
             return
         }
         process = p
@@ -116,7 +141,6 @@ final class EngineController {
         startedAt = Date()
         buffer.removeAll()
         lastStderr = ""
-        state.beginLoading()
     }
 
     func stop() {

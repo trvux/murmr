@@ -240,6 +240,9 @@ enum Snapshot {
         check("deleting a missing item is not an error", KeychainStore.delete("probe", service: service))
 
         // --- key status (existence only)
+        let t0 = Date()
+        let env = AISettings.engineEnvironment()
+        print("info engine environment: \(env.count) variables in \(Int(Date().timeIntervalSince(t0) * 1000)) ms")
         let catalog = AISettings.loadCatalog()
         check("the engine lists its providers", catalog.count >= 2 && catalog.contains { $0.id == "deepseek" } && catalog.contains { $0.id == "claude" })
         check("a provider with a fixed address cannot be edited, ollama can",

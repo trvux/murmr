@@ -35,7 +35,7 @@ type Whisper struct {
 // noise or a button click; measured: noise -> "Hippie, I'm going to go.".
 // The looser silence/padding values (500ms, 150ms) scored best on our test clips.
 func vadArgs() []string {
-	path := getenv("MURMR_VAD_MODEL", "models/ggml-silero-v5.1.2.bin")
+	path := speechModelByID("vad").path()
 	if os.Getenv("MURMR_VAD") == "off" || !fileExists(path) {
 		return nil
 	}

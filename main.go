@@ -38,17 +38,13 @@ func ignoredPath() string { return filepath.Join(configDir(), "ignored.txt") }
 func daemon() {
 	if os.Getenv("MURMR_EVENTS") == "1" {
 		events = newEventSink(os.Stdout) // created first, so the shell can show startup progress
+		// If the shell dies, writing an event to the closed pipe would kill this process with SIGPIPE at once, before
+		// any defer runs, and leave whisper-server running with nobody to stop it. Ignored, the write just fails and
+		// the stdin-closed path below shuts everything down in order.
+		signal.Ignore(syscall.SIGPIPE)
 	}
-	events.emit("loading", "stage", "dictionary")
-	model := getenv("MURMR_MODEL", "models/ggml-large-v3-turbo-q5_0.bin")
-	if !fileExists(model) {
-		log.Fatalf("model not found: %s (set MURMR_MODEL)", model)
-	}
-	dict, cleaner := loadCleaner()
-
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-
 	if events != nil {
 		// Started by the macOS app shell: stop when the shell goes away (its end of our stdin closes).
 		go func() {
@@ -56,6 +52,18 @@ func daemon() {
 			cancel()
 		}()
 	}
+
+	events.emit("loading", "stage", "dictionary")
+	dict, cleaner := loadCleaner()
+
+	events.emit("loading", "stage", "models")
+	if err := ensureSpeechModels(ctx, func(id string, done, total int64) {
+		events.emit("download", "name", id, "done", done, "total", total)
+	}); err != nil {
+		events.emit("error", "msg", "Không tải được model giọng nói: "+err.Error())
+		log.Fatalf("speech model: %v", err)
+	}
+	model := speechModelByID("whisper").path()
 
 	if len(vadArgs()) > 0 {
 		log.Printf("vad: on (non-speech is ignored)")

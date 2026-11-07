@@ -107,7 +107,7 @@ struct EngineStatus: View {
         if state.isLoading {
             VStack(alignment: .leading, spacing: Theme.Space.s) {
                 ProgressBar(value: state.loadProgress)
-                Text(AppState.loadText(state.loadStage))
+                Text(state.loadDetail ?? AppState.loadText(state.loadStage))
                     .font(Theme.Typeface.caption)
                     .foregroundStyle(Theme.inkMuted)
             }

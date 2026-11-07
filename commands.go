@@ -33,8 +33,10 @@ func runCommand(name string, args []string) error {
 		return cmdModels(args)
 	case "providers":
 		return cmdProviders()
+	case "fetch-models":
+		return cmdFetchModels()
 	default:
-		return fmt.Errorf("unknown command %q (try: report, forget, hints, styles, drill, progress, score, clean, models, providers)", name)
+		return fmt.Errorf("unknown command %q (try: report, forget, hints, styles, drill, progress, score, clean, models, providers, fetch-models)", name)
 	}
 }
 
@@ -182,4 +184,18 @@ func cmdStyles() error {
 	}
 	fmt.Println(string(b))
 	return nil
+}
+
+// cmdFetchModels downloads the speech models now (the app does the same on first launch), printing progress.
+func cmdFetchModels() error {
+	var lastPct = map[string]int{}
+	return ensureSpeechModels(context.Background(), func(id string, done, total int64) {
+		if total <= 0 {
+			return
+		}
+		if pct := int(done * 100 / total); pct != lastPct[id] && (pct%5 == 0 || done == total) {
+			lastPct[id] = pct
+			fmt.Fprintf(os.Stderr, "%s: %d%% (%d / %d MB)\n", id, pct, done/1_000_000, total/1_000_000)
+		}
+	})
 }
