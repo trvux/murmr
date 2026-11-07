@@ -29,6 +29,8 @@ cp Resources/Info.plist "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" -c "Set :CFBundleVersion $BUILD" "$APP/Contents/Info.plist"
 cp build/murmr "$APP/Contents/Resources/murmr"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+# the two languages of the interface (Vietnamese words are the keys; English is the translation, see L10n.swift)
+cp -R Resources/en.lproj Resources/vi.lproj "$APP/Contents/Resources/"
 cp vendor/whisper-server "$APP/Contents/Resources/whisper-server"
 mkdir -p "$APP/Contents/Resources/licenses"
 cp vendor/licenses/* "$APP/Contents/Resources/licenses/"

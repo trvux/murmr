@@ -234,8 +234,8 @@ final class AppsStore: ObservableObject {
     /// What to call a profile id in a menu. Unknown ids read as "keep", which is also what the engine does.
     func name(for id: String) -> String {
         if let p = profiles.first(where: { $0.id == id }) { return p.label }
-        if id == "casual" { return "tao / mày" }
-        return "Giữ nguyên"
+        if id == "casual" { return "tao / mày" }  // l10n-ok: the words themselves, not interface text
+        return tr("Giữ nguyên")
     }
 
     func userProfileID(for bundle: String) -> String? {
@@ -274,11 +274,11 @@ final class AppsStore: ObservableObject {
     func addProfile(selfWord rawSelf: String, you rawYou: String, we rawWe: String) -> String? {
         let selfWord = PronounProfile.clean(rawSelf), you = PronounProfile.clean(rawYou), we = PronounProfile.clean(rawWe)
         guard !selfWord.isEmpty || !you.isEmpty else {
-            message = "Nhập ít nhất một từ: bạn gọi bản thân, hoặc gọi người nghe."
+            message = tr("Nhập ít nhất một từ: bạn gọi bản thân, hoặc gọi người nghe.")
             return nil
         }
         if let same = profiles.first(where: { $0.selfWord == selfWord && $0.you == you && $0.we == we }) {
-            message = "Đã có cách xưng hô này rồi."
+            message = tr("Đã có cách xưng hô này rồi.")
             return nil
         }
         message = nil
@@ -339,7 +339,7 @@ final class AppsStore: ObservableObject {
             if case .title(let t, _) = $0.kind { return t.lowercased() == text.lowercased() } else { return false }
         }
         guard !taken else {
-            message = "Đã có quy tắc cho tiêu đề này."
+            message = tr("Đã có quy tắc cho tiêu đề này.")
             return false
         }
         message = nil
@@ -360,7 +360,7 @@ final class AppsStore: ObservableObject {
             try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
             try AppsFile.serialize(entries).write(toFile: AppsFile.path, atomically: true, encoding: .utf8)
         } catch {
-            message = "Không lưu được: \(error.localizedDescription)"
+            message = tr("Không lưu được: %@", "\(error.localizedDescription)")
         }
     }
 }

@@ -127,7 +127,8 @@ struct Eyebrow: View {
     init(_ text: String) { self.text = text }
 
     var body: some View {
-        Text(text.uppercased())
+        Text(LocalizedStringKey(text))
+            .textCase(.uppercase)
             .font(Theme.Typeface.label)
             .tracking(1.0)
             .foregroundStyle(Theme.inkMuted)
@@ -156,7 +157,7 @@ struct InkButton: View {
         Button(action: action) {
             HStack(spacing: Theme.Space.s) {
                 if let symbol { Image(systemName: symbol).font(Theme.Typeface.captionStrong) }
-                Text(title).font(Theme.Typeface.bodyStrong)
+                Text(LocalizedStringKey(title)).font(Theme.Typeface.bodyStrong)
             }
             .padding(.horizontal, Theme.Space.l)
             .padding(.vertical, Theme.Space.s)
@@ -181,7 +182,7 @@ struct OutlineButton: View {
         Button(action: action) {
             HStack(spacing: Theme.Space.s) {
                 if let symbol { Image(systemName: symbol).font(Theme.Typeface.captionStrong) }
-                Text(title).font(Theme.Typeface.body)
+                Text(LocalizedStringKey(title)).font(Theme.Typeface.body)
             }
             .padding(.horizontal, Theme.Space.m)
             .padding(.vertical, Theme.Space.s)
@@ -219,9 +220,9 @@ struct SettingRow<Control: View>: View {
     var body: some View {
         HStack(alignment: .center, spacing: Theme.Space.l) {
             VStack(alignment: .leading, spacing: Theme.Space.xs) {
-                Text(title).font(Theme.Typeface.bodyStrong).foregroundStyle(Theme.ink)
+                Text(LocalizedStringKey(title)).font(Theme.Typeface.bodyStrong).foregroundStyle(Theme.ink)
                 if let detail {
-                    Text(detail)
+                    Text(LocalizedStringKey(detail))
                         .font(Theme.Typeface.caption)
                         .foregroundStyle(Theme.inkMuted)
                         .fixedSize(horizontal: false, vertical: true)
@@ -243,7 +244,7 @@ struct InputField: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        TextField(placeholder, text: $text)
+        TextField(LocalizedStringKey(placeholder), text: $text)
             .textFieldStyle(.plain)
             .font(Theme.Typeface.body)
             .foregroundStyle(Theme.ink)
@@ -324,7 +325,7 @@ struct SecureInputField: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        SecureField(placeholder, text: $text)
+        SecureField(LocalizedStringKey(placeholder), text: $text)
             .textFieldStyle(.plain)
             .font(Theme.Typeface.mono)
             .foregroundStyle(Theme.ink)
@@ -353,7 +354,7 @@ struct SegmentedChoice<Value: Hashable>: View {
                 Button {
                     selection = option.value
                 } label: {
-                    Text(option.title)
+                    Text(LocalizedStringKey(option.title))
                         .font(chosen ? Theme.Typeface.bodyStrong : Theme.Typeface.body)
                         .foregroundStyle(chosen ? Theme.paper : Theme.ink)
                         .padding(.horizontal, Theme.Space.m)
@@ -383,7 +384,7 @@ struct ExternalLink: View {
         if let destination = URL(string: url) {
             Link(destination: destination) {
                 HStack(spacing: Theme.Space.xs) {
-                    Text(title).font(Theme.Typeface.caption)
+                    Text(LocalizedStringKey(title)).font(Theme.Typeface.caption)
                     Image(systemName: "arrow.up.right").font(Theme.Typeface.label)
                 }
                 .foregroundStyle(Theme.signal)
@@ -403,7 +404,7 @@ struct MenuField<Content: View>: View {
             content()
         } label: {
             HStack {
-                Text(label).font(Theme.Typeface.body).foregroundStyle(Theme.ink)
+                Text(LocalizedStringKey(label)).font(Theme.Typeface.body).foregroundStyle(Theme.ink)
                 Spacer()
                 if let detail { Text(detail).font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted) }
                 Image(systemName: "chevron.up.chevron.down").font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted)
@@ -523,7 +524,7 @@ struct BannerArt: View {
                     .font(.system(size: 22, weight: .semibold))
                     .tracking(9)
                     .foregroundStyle(Theme.inkMuted)
-                Text("Giữ phím, nói, thả ra: chữ hiện ra ở app đang dùng.")
+                Text(tr("Giữ phím, nói, thả ra: chữ hiện ra ở app đang dùng."))
                     .font(.system(size: 22))
                     .foregroundStyle(Theme.inkMuted)
                     .padding(.top, 18)
@@ -543,15 +544,23 @@ struct DmgBackgroundArt: View {
         ZStack {
             Theme.paper
             VStack(spacing: 0) {
-                Text("Kéo Murmr Stream vào Applications")
-                    .font(.system(size: 21, weight: .semibold, design: .serif))
-                    .foregroundStyle(Theme.ink)
-                    .padding(.top, 38)
+                VStack(spacing: 5) {  // a disk image cannot change language, so it says both
+                    Text(L10n.tr("Kéo Murmr Stream vào Applications", in: .en))
+                        .font(.system(size: 21, weight: .semibold, design: .serif))
+                        .foregroundStyle(Theme.ink)
+                    Text(L10n.tr("Kéo Murmr Stream vào Applications", in: .vi))
+                        .font(.system(size: 14))
+                        .foregroundStyle(Theme.inkMuted)
+                }
+                .padding(.top, 32)
                 Spacer()
                 VStack(spacing: 10) {
-                    Text("Lần đầu mở bị chặn? Vào System Settings → Privacy & Security, kéo xuống mục Security, rồi bấm:")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Theme.inkMuted)
+                    VStack(spacing: 3) {
+                        Text(L10n.tr("Lần đầu mở bị chặn? Vào System Settings → Privacy & Security, kéo xuống mục Security, rồi bấm:", in: .en))
+                        Text(L10n.tr("Lần đầu mở bị chặn? Vào System Settings → Privacy & Security, kéo xuống mục Security, rồi bấm:", in: .vi))
+                    }
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(Theme.inkMuted)
                     // what that row looks like in macOS, so it is recognised when it appears
                     HStack {
                         Text("“Murmr Stream” was blocked to protect your Mac.")
@@ -723,21 +732,21 @@ struct GuideArt: View {
                 HStack(spacing: 28) {
                     Mascot(mood: .oops, size: 124)
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Lần đầu mở, macOS sẽ chặn")
+                        Text(tr("Lần đầu mở, macOS sẽ chặn"))
                             .font(.system(size: 40, weight: .semibold, design: .serif))
                             .foregroundStyle(Theme.ink)
-                        Text("Vì app chưa được Apple công chứng. Chỉ cần làm một lần, ba bước.")
+                        Text(tr("Vì app chưa được Apple công chứng. Chỉ cần làm một lần, ba bước."))
                             .font(.system(size: 20))
                             .foregroundStyle(Theme.inkMuted)
                     }
                 }
                 VStack(spacing: 0) {
                     Rectangle().fill(Theme.rule).frame(height: 1)
-                    step(1, "Mở Murmr Stream. Khi macOS báo không xác minh được, bấm Done.") { dialog }
+                    step(1, tr("Mở Murmr Stream. Khi macOS báo không xác minh được, bấm Done.")) { dialog }
                     Rectangle().fill(Theme.rule).frame(height: 1)
-                    step(2, "Mở System Settings, chọn Privacy & Security, kéo xuống mục Security.") { sidebar }
+                    step(2, tr("Mở System Settings, chọn Privacy & Security, kéo xuống mục Security.")) { sidebar }
                     Rectangle().fill(Theme.rule).frame(height: 1)
-                    step(3, "Bấm Open Anyway cạnh dòng “Murmr Stream was blocked”, rồi xác nhận bằng mật khẩu hoặc Touch ID.") { blockedRow }
+                    step(3, tr("Bấm Open Anyway cạnh dòng “Murmr Stream was blocked”, rồi xác nhận bằng mật khẩu hoặc Touch ID.")) { blockedRow }
                     Rectangle().fill(Theme.rule).frame(height: 1)
                 }
             }
@@ -829,7 +838,7 @@ struct MascotNote: View {
     var body: some View {
         HStack(spacing: Theme.Space.m) {
             Mascot(mood: mood, size: size).frame(width: size, height: size)
-            Text(text)
+            Text(LocalizedStringKey(text))
                 .font(Theme.Typeface.caption)
                 .foregroundStyle(tone)
                 .fixedSize(horizontal: false, vertical: true)

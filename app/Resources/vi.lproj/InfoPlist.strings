@@ -1,0 +1,3 @@
+/* Shown by macOS in its own permission dialogs. */
+"NSMicrophoneUsageDescription" = "Murmr Stream chỉ thu âm khi bạn đang giữ phím nói.";
+"NSAppleEventsUsageDescription" = "Murmr Stream dán chữ đã chép vào app bạn đang dùng.";

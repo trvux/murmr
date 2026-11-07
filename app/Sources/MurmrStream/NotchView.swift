@@ -120,9 +120,9 @@ struct NotchView: View {
                 .padding(.horizontal, Theme.Space.xl)
                 .padding(.top, Theme.Space.xs)
         case .transcribing:
-            StatusLine(text: "Đang chép lời")
+            StatusLine(text: tr("Đang chép lời"))
         case .cleaning:
-            StatusLine(text: "Đang dọn văn")
+            StatusLine(text: tr("Đang dọn văn"))
         case .done(let text):
             HStack(alignment: .top, spacing: Theme.Space.s) {
                 Image(systemName: "checkmark").foregroundStyle(Theme.pillInk)
@@ -161,12 +161,12 @@ enum WaveStyle: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .flock: return "Nét vẽ Murmr"
-        case .line: return "Đường sóng mượt"
-        case .bars: return "Vạch đối xứng mảnh"
-        case .dots: return "Chuỗi chấm"
-        case .ribbon: return "Dải lụa đặc"
-        case .pulse: return "Chấm nhịp thở"
+        case .flock: return tr("Nét vẽ Murmr")
+        case .line: return tr("Đường sóng mượt")
+        case .bars: return tr("Vạch đối xứng mảnh")
+        case .dots: return tr("Chuỗi chấm")
+        case .ribbon: return tr("Dải lụa đặc")
+        case .pulse: return tr("Chấm nhịp thở")
         }
     }
 }

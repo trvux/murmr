@@ -43,7 +43,7 @@ struct AIPage: View {
         let shown = settings.shownChoice
         return VStack(alignment: .leading, spacing: Theme.Space.m) {
             Eyebrow("Dịch vụ dọn văn")
-            MenuField(label: settings.provider(shown)?.title ?? "Không dùng AI") {
+            MenuField(label: settings.provider(shown)?.title ?? tr("Không dùng AI")) {
                 Picker("Dịch vụ", selection: Binding(
                     get: { shown },
                     set: {
@@ -62,8 +62,8 @@ struct AIPage: View {
                 .labelsHidden()
             }
             Text(shown == AISettings.off
-                 ? "Đang dán nguyên văn Whisper chép, không gửi gì đi đâu. Chọn một dịch vụ để bật AI."
-                 : "Chỉ dịch vụ đang chọn được gọi, trừ khi bạn chọn một dịch vụ dự phòng ở dưới. Khoá của các bên khác vẫn được giữ, không tốn tiền.")
+                 ? tr("Đang dán nguyên văn Whisper chép, không gửi gì đi đâu. Chọn một dịch vụ để bật AI.")
+                 : tr("Chỉ dịch vụ đang chọn được gọi, trừ khi bạn chọn một dịch vụ dự phòng ở dưới. Khoá của các bên khác vẫn được giữ, không tốn tiền."))
                 .font(Theme.Typeface.caption)
                 .foregroundStyle(Theme.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -72,8 +72,8 @@ struct AIPage: View {
 
     /// A menu line: the name, and what is worth knowing before picking it.
     private func menuTitle(_ p: ProviderInfo) -> String {
-        if p.local { return "\(p.title)  ·  chữ không rời máy" }
-        if p.needsKey && settings.status(p) == .missing { return "\(p.title)  ·  chưa có khoá" }
+        if p.local { return tr("%@  ·  chữ không rời máy", "\(p.title)") }
+        if p.needsKey && settings.status(p) == .missing { return tr("%@  ·  chưa có khoá", "\(p.title)") }
         return p.title
     }
 
@@ -86,17 +86,16 @@ struct AIPage: View {
                 Spacer()
                 statusLabel(p)
             }
-            Text(p.blurb).font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted).fixedSize(horizontal: false, vertical: true)
+            Text(tr(p.blurb)).font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted).fixedSize(horizontal: false, vertical: true)
             if p.editableURL { addressSection(p) }
             if p.takesKey { keySection(p) }
             if settings.isReady(p) {
                 modelSection(p)
                 if let result = settings.testResults[p.id] {
-                    let ok = result.hasPrefix("Khoá hoạt động") || result.hasPrefix("Dịch vụ trên máy")
-                    MascotNote(mood: ok ? .done : .oops, text: result, size: 44, tone: ok ? Theme.sage : Theme.signal)
+                    MascotNote(mood: result.ok ? .done : .oops, text: result.say.text, size: 44, tone: result.ok ? Theme.sage : Theme.signal)
                 }
                 HStack(spacing: Theme.Space.s) {
-                    OutlineButton(title: settings.testing == p.id ? "Đang thử…" : (p.takesKey ? "Thử khoá" : "Thử kết nối"), symbol: "checkmark.seal") {
+                    OutlineButton(title: settings.testing == p.id ? tr("Đang thử…") : (p.takesKey ? tr("Thử khoá") : tr("Thử kết nối")), symbol: "checkmark.seal") {
                         Task { await settings.test(p) }
                     }
                     .disabled(settings.testing != nil)
@@ -139,7 +138,7 @@ struct AIPage: View {
                         .disabled(draftEmpty)
                 }
                 HStack(spacing: Theme.Space.m) {
-                    if !p.keyURL.isEmpty { ExternalLink(title: "Lấy khoá \(p.title.split(separator: " ").first.map(String.init) ?? p.title)", url: p.keyURL) }
+                    if !p.keyURL.isEmpty { ExternalLink(title: tr("Lấy khoá %@", "\(p.title.split(separator: " ").first.map(String.init) ?? p.title)"), url: p.keyURL) }
                     if status == .envFile {
                         OutlineButton(title: "Chuyển khoá từ file env vào Keychain", symbol: "lock") { settings.moveEnvKeyToKeychain(for: p) }
                     }
@@ -170,13 +169,13 @@ struct AIPage: View {
         let listed = all.contains { $0.id == selected }
         let binding = Binding(get: { selected }, set: { settings.setModel($0, for: p) })
 
-        func label(_ id: String, _ name: String) -> String { id == p.defaultModel ? "\(name)  ·  mặc định" : name }
+        func label(_ id: String, _ name: String) -> String { id == p.defaultModel ? tr("%@  ·  mặc định", "\(name)") : name }
 
         return VStack(alignment: .leading, spacing: Theme.Space.s) {
             Eyebrow("Model")
             MenuField(
-                label: selected.isEmpty ? "Chọn model…" : (all.first { $0.id == selected }?.name ?? selected),
-                detail: settings.loadingModels.contains(p.id) ? "Đang tải danh sách…" : nil
+                label: selected.isEmpty ? tr("Chọn model…") : (all.first { $0.id == selected }?.name ?? selected),
+                detail: settings.loadingModels.contains(p.id) ? tr("Đang tải danh sách…") : nil
             ) {
                 Picker("Model", selection: binding) {
                     if !listed && !selected.isEmpty { Text(label(selected, selected)).tag(selected) }
@@ -186,7 +185,7 @@ struct AIPage: View {
                 .labelsHidden()
                 if !old.isEmpty {
                     Divider()
-                    Menu("Model cũ") {
+                    Menu(tr("Model cũ")) {
                         Picker("Model cũ", selection: binding) { ForEach(old) { Text($0.name).tag($0.id) } }
                             .pickerStyle(.inline)
                             .labelsHidden()
@@ -205,7 +204,7 @@ struct AIPage: View {
                 }
             }
             if let error = settings.modelErrors[p.id] {
-                Text(error).font(Theme.Typeface.caption).foregroundStyle(Theme.signal)
+                Text(error.text).font(Theme.Typeface.caption).foregroundStyle(Theme.signal)
             } else if selected.isEmpty {
                 Text("Chọn một model ở trên. Dọn văn cần trả lời trong vài giây, nên model nhỏ và nhanh thường hợp nhất.")
                     .font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted)
@@ -225,13 +224,13 @@ struct AIPage: View {
                 switch settings.status(p) {
                 case .keychain(let last4):
                     Circle().fill(Theme.sage).frame(width: 6, height: 6)
-                    Text("Đã lưu trong Keychain  ••••\(last4)").font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted)
+                    Text(tr("Đã lưu trong Keychain  ••••%@", "\(last4)")).font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted)
                 case .envFile:
                     Circle().fill(Theme.signal).frame(width: 6, height: 6)
                     Text("Đang ở file env").font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted)
                 case .missing:
                     Circle().fill(Theme.inkFaint).frame(width: 6, height: 6)
-                    Text(p.needsKey ? "Chưa có khoá" : "Chưa đặt khoá").font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted)
+                    Text(p.needsKey ? tr("Chưa có khoá") : tr("Chưa đặt khoá")).font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted)
                 }
             }
         }
@@ -252,13 +251,13 @@ struct AIPage: View {
         let current = candidates.contains { $0.id == settings.backup } ? settings.backup : ""
         if candidates.isEmpty {
             if settings.shownChoice != AISettings.off {
-                Text("Muốn có dự phòng khi \(primary.title) lỗi? Thêm khoá của một dịch vụ khác để chọn nó làm dự phòng.")
+                Text(tr("Muốn có dự phòng khi %@ lỗi? Thêm khoá của một dịch vụ khác để chọn nó làm dự phòng.", "\(primary.title)"))
                     .font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted).fixedSize(horizontal: false, vertical: true)
             }
         } else {
             VStack(alignment: .leading, spacing: Theme.Space.s) {
                 Eyebrow("Dự phòng")
-                MenuField(label: settings.provider(current)?.title ?? "Tắt") {
+                MenuField(label: settings.provider(current)?.title ?? tr("Tắt")) {
                     Picker("Dự phòng", selection: Binding(get: { current }, set: { settings.backup = $0 })) {
                         Text("Tắt").tag("")
                         ForEach(candidates) { Text($0.title).tag($0.id) }
@@ -266,7 +265,7 @@ struct AIPage: View {
                     .pickerStyle(.inline)
                     .labelsHidden()
                 }
-                Text("Nếu \(primary.title) không trả lời, chữ sẽ được gửi sang dịch vụ dự phòng thay vì dán nguyên văn, và notch báo cho bạn biết. Để Tắt thì chữ chỉ đi tới dịch vụ bạn đã chọn.")
+                Text(tr("Nếu %@ không trả lời, chữ sẽ được gửi sang dịch vụ dự phòng thay vì dán nguyên văn, và notch báo cho bạn biết. Để Tắt thì chữ chỉ đi tới dịch vụ bạn đã chọn.", "\(primary.title)"))
                     .font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted).fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -289,7 +288,7 @@ struct AIPage: View {
     private func note(_ text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Theme.Space.s) {
             Circle().fill(Theme.inkFaint).frame(width: 4, height: 4)
-            Text(text).font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted).fixedSize(horizontal: false, vertical: true)
+            Text(LocalizedStringKey(text)).font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted).fixedSize(horizontal: false, vertical: true)
         }
     }
 }

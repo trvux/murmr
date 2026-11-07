@@ -36,7 +36,7 @@ struct AppsPage: View {
         VStack(alignment: .leading, spacing: Theme.Space.m) {
             Eyebrow("Cách xưng hô của bạn")
             if store.profiles.isEmpty {
-                MascotNote(mood: .idle, text: "Chưa có cách xưng hô nào. Chọn một gợi ý bên dưới, hoặc tự nhập.")
+                MascotNote(mood: .idle, text: tr("Chưa có cách xưng hô nào. Chọn một gợi ý bên dưới, hoặc tự nhập."))
             } else {
                 RuledList(items: store.profiles) { profile in
                     HStack {
@@ -95,7 +95,7 @@ struct AppsPage: View {
             Text("Dùng khi không có quy tắc nào khác bên dưới.")
                 .font(Theme.Typeface.caption)
                 .foregroundStyle(Theme.inkMuted)
-            MenuField(label: store.defaultID == PronounProfile.keepID ? "Giữ nguyên như máy nghe được" : store.name(for: store.defaultID)) {
+            MenuField(label: store.defaultID == PronounProfile.keepID ? tr("Giữ nguyên như máy nghe được") : store.name(for: store.defaultID)) {
                 Picker("Mặc định", selection: Binding(get: { store.defaultID }, set: { store.setDefault($0) })) {
                     Text("Giữ nguyên như máy nghe được").tag(PronounProfile.keepID)
                     ForEach(store.profiles) { Text($0.detail).tag($0.id) }
@@ -248,7 +248,7 @@ private struct AppPicker: View {
                         .buttonStyle(.plain)
                     }
                     if filtered.isEmpty {
-                        MascotNote(mood: .oops, text: "Không thấy ứng dụng nào.", size: 44)
+                        MascotNote(mood: .oops, text: tr("Không thấy ứng dụng nào."), size: 44)
                     }
                 }
             }

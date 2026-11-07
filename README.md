@@ -2,8 +2,8 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/banner-dark.png">
-    <img src="docs/banner-light.png" alt="Murmr Stream" width="820">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/en/banner-dark.png">
+    <img src="docs/en/banner-light.png" alt="Murmr Stream" width="820">
   </picture>
 </p>
 
@@ -20,7 +20,7 @@ your Mac. An optional AI step cleans up the text.
 [![License](https://img.shields.io/github/license/trvux/murmr?style=flat-square)](LICENSE)
 
 <p align="center">
-  <img src="docs/screenshots/notch.png" alt="The pill that grows out of the notch: listening, transcribing, done, and an error" width="560">
+  <img src="docs/en/notch.png" alt="The pill that grows out of the notch: listening, transcribing, done, and an error" width="560">
 </p>
 
 ## How it works
@@ -43,13 +43,12 @@ You choose the key. It can be a modifier on its own (the right Option by default
 | **AI cleanup** | Removes fillers, fixes punctuation and mis-heard English tech terms, keeps Vietnamese and English as you spoke them. Works with DeepSeek, Claude, OpenAI, Gemini, Kimi, OpenRouter, Ollama on your own machine, or any OpenAI-compatible address. Without a key you still get the raw text. |
 | **Your own way of addressing** | Say it the way you speak: "tao / mày", "tôi / bạn", "mình / cậu", "anh / em". Set a default, or one per app or per window title. Nothing is assumed for you. |
 | **Personal dictionary** | Names, terms and `wrong -> Right` fixes, fed to both Whisper and the AI. It also learns recurring corrections from how you use it. |
+| **English and Vietnamese** | The app speaks both. It follows your Mac's language, or you choose in Settings, General. The language you dictate in is separate: Whisper listens for whatever you say. |
 | **Private by design** | No account, no server of ours, no telemetry. Keys live in the macOS Keychain. See [PRIVACY.md](PRIVACY.md). |
 
 <p align="center">
-  <img src="docs/screenshots/pronouns.png" alt="The addressing page of the Settings window" width="720">
+  <img src="docs/en/pronouns.png" alt="The addressing page of the Settings window" width="720">
 </p>
-
-> The app's own interface is in Vietnamese for now.
 
 ## Install
 
@@ -61,8 +60,8 @@ You choose the key. It can be a modifier on its own (the right Option by default
    Security**, scroll to **Security** and click **Open Anyway**, then confirm with your password or Touch ID.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/first-launch-dark.png">
-  <img src="docs/first-launch.png" alt="The three steps for the first launch: dismiss the warning, open Privacy &amp; Security, click Open Anyway" width="820">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/en/first-launch-dark.png">
+  <img src="docs/en/first-launch.png" alt="The three steps for the first launch: dismiss the warning, open Privacy &amp; Security, click Open Anyway" width="820">
 </picture>
 
 Then a short welcome window asks you to choose your dictation key, allow the three permissions macOS asks for, and
@@ -70,7 +69,7 @@ downloads the speech models (574 MB, once). Needs a Mac with Apple Silicon and m
 macOS 15 and later).
 
 <p align="center">
-  <img src="docs/screenshots/welcome.png" alt="The welcome window: choose the key you hold to talk" width="360">
+  <img src="docs/en/welcome.png" alt="The welcome window: choose the key you hold to talk" width="360">
 </p>
 
 ## Use it
@@ -91,6 +90,9 @@ Stream and **+** to add it again.
 
 **I pressed the key and nothing happened.** All three permissions (Microphone, Input Monitoring, Accessibility) must be
 granted, and the models must have finished downloading. The welcome window shows both; reopen it from the menu bar icon.
+
+**How do I change the app's language?** Settings, General, Language: Automatic (follows macOS), Tiếng Việt or English. It
+changes at once, and the welcome window has the same switch in its corner.
 
 **Does it work without an AI key?** Yes. You get the raw transcript, which is already usable.
 

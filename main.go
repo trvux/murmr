@@ -52,7 +52,8 @@ func daemon() {
 	if events != nil {
 		// Started by the macOS app shell: stop when the shell goes away (its end of our stdin closes). The shell can also
 		// send lines: "key <spec>" changes the dictation key right away (see holdkey.go), without a restart, and
-		// "capture on" / "capture off" pause it while the person is choosing a new one.
+		// "capture on" / "capture off" pause it while the person is choosing a new one, and "lang vi|en" sets the language
+		// of the few notices the engine words itself (uitext.go).
 		go func() {
 			sc := bufio.NewScanner(os.Stdin)
 			for sc.Scan() {
@@ -62,6 +63,10 @@ func daemon() {
 					continue
 				case "capture off":
 					hold.SetPaused(false)
+					continue
+				}
+				if lang, ok := strings.CutPrefix(sc.Text(), "lang "); ok {
+					SetUILang(lang)
 					continue
 				}
 				if spec, ok := strings.CutPrefix(sc.Text(), "key "); ok {
@@ -83,7 +88,7 @@ func daemon() {
 	if err := ensureSpeechModels(ctx, func(id string, done, total int64) {
 		events.emit("download", "name", id, "done", done, "total", total)
 	}); err != nil {
-		events.emit("error", "msg", "Không tải được model giọng nói: "+err.Error())
+		events.emit("error", "msg", ui("Không tải được model giọng nói: ", "Could not download the speech model: ")+err.Error())
 		log.Fatalf("speech model: %v", err)
 	}
 	model := speechModelByID("whisper").path()
@@ -216,7 +221,7 @@ func process(wh *Whisper, cleaner Cleaner, dict *Dictionary, j job) {
 	tr, err := wh.Transcribe(wav)
 	if err != nil {
 		log.Printf("transcribe: %v", err)
-		events.emit("error", "msg", "Không nghe được: "+err.Error())
+		events.emit("error", "msg", ui("Không nghe được: ", "Could not transcribe: ")+err.Error())
 		return
 	}
 	if !hasWord(tr.Text) { // Whisper sometimes returns just "." for silence or noise
@@ -263,7 +268,7 @@ func process(wh *Whisper, cleaner Cleaner, dict *Dictionary, j job) {
 
 	if err := pasteText(text); err != nil {
 		log.Printf("paste (grant Accessibility to your terminal?): %v", err)
-		events.emit("error", "msg", "Không dán được, cần quyền Accessibility")
+		events.emit("error", "msg", ui("Không dán được, cần quyền Accessibility", "Could not paste, Accessibility permission needed"))
 		return
 	}
 	events.emit("done", "text", text, "ms", time.Since(t0).Milliseconds(), "note", note)

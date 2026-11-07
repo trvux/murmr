@@ -42,6 +42,8 @@ struct WelcomeView: View {
         .frame(width: 560, height: 660)
         .background(Theme.paper)
         .animation(Theme.Motion.calm, value: step)
+        .environment(\.locale, L10n.locale)
+        .overlay(alignment: .topTrailing) { LanguageSwitch(state: state).padding(.top, Theme.Space.l).padding(.trailing, Theme.Space.xl) }
         .onAppear {
             permissions.startPolling()
             if step == .permissions { permissions.askInTurn() }
@@ -79,8 +81,8 @@ struct WelcomeView: View {
 
     private func heading(_ title: String, _ text: String) -> some View {
         VStack(spacing: Theme.Space.s) {
-            Text(title).font(Theme.Typeface.display).foregroundStyle(Theme.ink).multilineTextAlignment(.center)
-            Text(text)
+            Text(LocalizedStringKey(title)).font(Theme.Typeface.display).foregroundStyle(Theme.ink).multilineTextAlignment(.center)
+            Text(LocalizedStringKey(text))
                 .font(Theme.Typeface.body)
                 .foregroundStyle(Theme.inkMuted)
                 .multilineTextAlignment(.center)
@@ -90,12 +92,12 @@ struct WelcomeView: View {
 
     private var hello: some View {
         VStack(spacing: Theme.Space.xl) {
-            heading("Xin chào", "Murmr Stream chép lời bạn nói và dán vào đúng app bạn đang dùng.")
+            heading("Xin chào", tr("Murmr Stream chép lời bạn nói và dán vào đúng app bạn đang dùng."))
             VStack(alignment: .leading, spacing: Theme.Space.m) {
                 HStack(spacing: Theme.Space.l) {
-                    demoStep("1", "Giữ phím")
-                    demoStep("2", "Nói")
-                    demoStep("3", "Thả ra, chữ hiện ra")
+                    demoStep("1", tr("Giữ phím"))
+                    demoStep("2", tr("Nói"))
+                    demoStep("3", tr("Thả ra, chữ hiện ra"))
                 }
                 HStack(spacing: Theme.Space.m) {
                     HoldKeyField(state: state, capture: capture, unchosen: asking, onPicked: { asking = false })
@@ -105,7 +107,7 @@ struct WelcomeView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if asking && !capture.listening {
-                    Button("Dùng \(HoldKey.standard.label)") {
+                    Button(tr("Dùng %@", "\(HoldKey.standard.shown)")) {
                         state.setHoldKey(.standard)
                         asking = false
                     }
@@ -126,15 +128,15 @@ struct WelcomeView: View {
     }
 
     private var keyPrompt: String {
-        if capture.listening { return "Nhấn phím hoặc tổ hợp bạn muốn. Nhấn Esc để huỷ." }
-        if asking { return "Bạn chọn phím để nói. Bấm vào ô này rồi nhấn phím hoặc tổ hợp bạn muốn." }
-        return "Giữ phím này, nói, rồi thả ra. Bấm vào phím để đổi sang phím bạn thích."
+        if capture.listening { return tr("Nhấn phím hoặc tổ hợp bạn muốn. Nhấn Esc để huỷ.") }
+        if asking { return tr("Bạn chọn phím để nói. Bấm vào ô này rồi nhấn phím hoặc tổ hợp bạn muốn.") }
+        return tr("Giữ phím này, nói, rồi thả ra. Bấm vào phím để đổi sang phím bạn thích.")
     }
 
     private func demoStep(_ number: String, _ text: String) -> some View {
         HStack(spacing: Theme.Space.s) {
             Text(number).font(Theme.Typeface.mono).foregroundStyle(Theme.signal)
-            Text(text).font(Theme.Typeface.caption).foregroundStyle(Theme.ink)
+            Text(LocalizedStringKey(text)).font(Theme.Typeface.caption).foregroundStyle(Theme.ink)
         }
     }
 
@@ -149,7 +151,7 @@ struct WelcomeView: View {
 
     private var permissionsStep: some View {
         VStack(spacing: Theme.Space.l) {
-            heading("Cho phép ba quyền", "macOS sẽ hỏi từng quyền. Cả ba đều cần để dictation chạy được.")
+            heading("Cho phép ba quyền", tr("macOS sẽ hỏi từng quyền. Cả ba đều cần để dictation chạy được."))
             VStack(spacing: 0) {
                 Hairline()
                 ForEach(PermissionKind.allCases) { kind in
@@ -198,11 +200,11 @@ struct WelcomeView: View {
 
     private var prepare: some View {
         VStack(spacing: Theme.Space.xl) {
-            heading(state.engineReady ? "Đã chuẩn bị xong" : "Đang chuẩn bị",
-                    "Lần đầu, app tải mô hình nhận dạng giọng nói (khoảng 574 MB). Chỉ cần có mạng một lần.")
+            heading(state.engineReady ? tr("Đã chuẩn bị xong") : tr("Đang chuẩn bị"),
+                    tr("Lần đầu, app tải mô hình nhận dạng giọng nói (khoảng 574 MB). Chỉ cần có mạng một lần."))
             VStack(alignment: .leading, spacing: Theme.Space.s) {
                 ProgressBar(value: state.engineReady ? 1 : state.loadProgress)
-                Text(state.engineReady ? "Sẵn sàng" : (state.loadDetail ?? AppState.loadText(state.loadStage)))
+                Text(state.engineReady ? tr("Sẵn sàng") : (state.loadDetail?.text ?? AppState.loadText(state.loadStage)))
                     .font(Theme.Typeface.caption)
                     .foregroundStyle(Theme.inkMuted)
             }
@@ -219,7 +221,7 @@ struct WelcomeView: View {
 
     private var ready: some View {
         VStack(spacing: Theme.Space.xl) {
-            heading("Sẵn sàng", "Mở một ô soạn thảo bất kỳ, giữ \(state.holdKey.label) và nói. Thả ra, chữ sẽ hiện ở đó. Muốn đổi phím, vào Cài đặt, mục Chung.")
+            heading("Sẵn sàng", tr("Mở một ô soạn thảo bất kỳ, giữ %@ và nói. Thả ra, chữ sẽ hiện ở đó. Muốn đổi phím, vào Cài đặt, mục Chung.", "\(state.holdKey.shown)"))
             VStack(alignment: .leading, spacing: Theme.Space.m) {
                 bullet("Biểu tượng sóng ở thanh menu mở Cài đặt: từ điển, app, AI.")
                 bullet("Mở lại hướng dẫn này bất cứ lúc nào từ menu đó.")
@@ -230,7 +232,7 @@ struct WelcomeView: View {
     private func bullet(_ text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Theme.Space.s) {
             Circle().fill(Theme.inkFaint).frame(width: 4, height: 4)
-            Text(text).font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted).fixedSize(horizontal: false, vertical: true)
+            Text(LocalizedStringKey(text)).font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted).fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -262,7 +264,7 @@ struct WelcomeView: View {
             if step == .prepare && !state.engineReady {
                 Button("Tiếp tục ở nền") { finish() }.buttonStyle(.plain).font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted)
             }
-            InkButton(title: step == .hello ? "Bắt đầu" : (step == .ready ? "Xong" : "Tiếp tục")) {
+            InkButton(title: step == .hello ? tr("Bắt đầu") : (step == .ready ? tr("Xong") : tr("Tiếp tục"))) {
                 if step == .ready { finish() } else { move(1) }
             }
             .opacity(canContinue ? 1 : 0.4)

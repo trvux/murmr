@@ -7,7 +7,7 @@
 2. Eject the disk image and open the app **from Applications** (not from inside the disk image).
 3. The first launch is blocked by macOS because the app is not notarized yet. Click **Done**, open **System Settings → Privacy & Security**, scroll to **Security**, click **Open Anyway** next to "Murmr Stream was blocked" and confirm with your password. (On macOS 14 you can also right-click the app and choose **Open**.)
 
-   ![The three steps for the first launch](https://raw.githubusercontent.com/trvux/murmr/main/docs/first-launch.png)
+   ![The three steps for the first launch](https://raw.githubusercontent.com/trvux/murmr/main/docs/en/first-launch.png)
 4. Choose your dictation key in the welcome window and allow the permissions macOS asks for: Microphone, Input Monitoring, Accessibility.
 5. On first launch the app downloads two speech models (574 MB), which needs a network connection once.
 
@@ -20,7 +20,7 @@ Checksum: `shasum -a 256 -c Murmr-Stream-<version>.dmg.sha256` (file in Assets).
 2. Eject ổ đĩa cài đặt rồi mở app **từ Applications** (không mở từ bên trong ổ đĩa cài đặt).
 3. Lần đầu mở, macOS sẽ chặn vì app chưa được Apple công chứng. Bấm **Done**, mở **System Settings → Privacy & Security**, kéo xuống mục **Security**, bấm **Open Anyway** cạnh dòng "Murmr Stream was blocked" và xác nhận bằng mật khẩu. (Trên macOS 14 cũng có thể bấm chuột phải vào app, chọn **Open**.)
 
-   ![Ba bước mở app lần đầu](https://raw.githubusercontent.com/trvux/murmr/main/docs/first-launch.png)
+   ![Ba bước mở app lần đầu](https://raw.githubusercontent.com/trvux/murmr/main/docs/vi/first-launch.png)
 4. Chọn phím nói trong cửa sổ chào và cho phép các quyền macOS hỏi: Micro, Giám sát đầu vào, Trợ năng.
 5. Lần mở đầu app tải hai model giọng nói (574 MB), cần có mạng một lần.
 

@@ -20,11 +20,11 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .dictionary: return "Từ điển"
-        case .apps: return "Xưng hô"
-        case .ai: return "AI và khoá API"
-        case .appearance: return "Giao diện"
-        case .general: return "Chung"
+        case .dictionary: return tr("Từ điển")
+        case .apps: return tr("Xưng hô")
+        case .ai: return tr("AI và khoá API")
+        case .appearance: return tr("Giao diện")
+        case .general: return tr("Chung")
         }
     }
 
@@ -63,10 +63,12 @@ struct SettingsView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Theme.paper)
+            .id(state.language)  // the pages are made again when the language changes, so words built in code follow it
         }
         .frame(minWidth: 840, minHeight: 640)
         .ignoresSafeArea()
         .environmentObject(state)
+        .environment(\.locale, L10n.locale)
     }
 }
 
@@ -107,14 +109,14 @@ struct EngineStatus: View {
         if state.isLoading {
             VStack(alignment: .leading, spacing: Theme.Space.s) {
                 ProgressBar(value: state.loadProgress)
-                Text(state.loadDetail ?? AppState.loadText(state.loadStage))
+                Text(state.loadDetail?.text ?? AppState.loadText(state.loadStage))
                     .font(Theme.Typeface.caption)
                     .foregroundStyle(Theme.inkMuted)
             }
         } else {
             HStack(spacing: Theme.Space.s) {
                 Circle().fill(state.engineReady ? Theme.sage : Theme.signal).frame(width: 6, height: 6)
-                Text(state.engineReady ? "Sẵn sàng" : "Engine chưa chạy")
+                Text(state.engineReady ? tr("Sẵn sàng") : tr("Engine chưa chạy"))
                     .font(Theme.Typeface.caption)
                     .foregroundStyle(Theme.inkMuted)
             }
@@ -194,7 +196,7 @@ struct PageScaffold<Content: View>: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Space.xl) {
                 VStack(alignment: .leading, spacing: Theme.Space.s) {
-                    Text(title).font(Theme.Typeface.display).foregroundStyle(Theme.ink)
+                    Text(LocalizedStringKey(title)).font(Theme.Typeface.display).foregroundStyle(Theme.ink)
                     Text(LocalizedStringKey(subtitle))  // **bold** works, so a word can be stressed without quote marks
                         .font(Theme.Typeface.body)
                         .foregroundStyle(Theme.inkMuted)
@@ -431,23 +433,29 @@ struct GeneralPage: View {
 
     private var keyDetail: String {
         if let message = capture.message { return message }
-        if capture.listening { return "Nhấn phím hoặc tổ hợp phím bạn muốn dùng. Nhấn Esc để huỷ." }
-        return "Giữ để nói, thả ra để dán. Bấm vào ô bên phải rồi nhấn phím bạn muốn."
+        if capture.listening { return tr("Nhấn phím hoặc tổ hợp phím bạn muốn dùng. Nhấn Esc để huỷ.") }
+        return tr("Giữ để nói, thả ra để dán. Bấm vào ô bên phải rồi nhấn phím bạn muốn.")
     }
 
     var body: some View {
         PageScaffold(title: "Chung", subtitle: "Trạng thái của engine và nơi lưu dữ liệu.") {
             if state.isLoading { ProgressBar(value: state.loadProgress) }
             if !state.engineReady && !state.isLoading {
-                MascotNote(mood: .oops, text: "Engine đang dừng. Bấm Khởi động lại; nếu vẫn không được, mở nhật ký engine ở dưới.", size: 64)
+                MascotNote(mood: .oops, text: tr("Engine đang dừng. Bấm Khởi động lại; nếu vẫn không được, mở nhật ký engine ở dưới."), size: 64)
             }
             VStack(alignment: .leading, spacing: 0) {
-                SettingRow(title: state.engineReady ? "Engine đang chạy" : "Engine chưa sẵn sàng", detail: state.engineStatus) {
+                SettingRow(title: state.engineReady ? tr("Engine đang chạy") : tr("Engine chưa sẵn sàng"), detail: state.engineStatus) {
                     OutlineButton(title: "Khởi động lại", symbol: "arrow.clockwise", action: actions.restartEngine)
                 }
                 Hairline()
                 SettingRow(title: "Phím nói", detail: keyDetail) {
                     HoldKeyField(state: state, capture: capture)
+                }
+                Hairline()
+                SettingRow(title: "Ngôn ngữ", detail: "Ngôn ngữ chữ trong app (Tự động theo macOS). Đây không phải ngôn ngữ bạn nói: Whisper tự nghe theo giọng bạn.") {
+                    SegmentedChoice(
+                        options: [(value: UILanguage.auto, title: "Tự động"), (value: .vi, title: "Tiếng Việt"), (value: .en, title: "English")],
+                        selection: Binding(get: { state.language }, set: { state.setLanguage($0) }))
                 }
                 if let warning = state.holdKey.note {
                     Text(warning)
@@ -469,9 +477,27 @@ struct GeneralPage: View {
                 }
             }
 
-            Text("Murmr Stream \(version)")
+            Text(tr("Murmr Stream %@", "\(version)"))
                 .font(Theme.Typeface.caption)
                 .foregroundStyle(Theme.inkFaint)
+        }
+    }
+}
+
+/// The two languages as small words in a corner (the welcome window): a Vietnamese reader on an English Mac, or the
+/// other way round, should not have to find Settings to read the guide.
+struct LanguageSwitch: View {
+    @ObservedObject var state: AppState
+
+    var body: some View {
+        HStack(spacing: Theme.Space.s) {
+            ForEach([UILanguage.vi, .en]) { language in
+                let chosen = L10n.current == language
+                Button(language == .vi ? "Tiếng Việt" : "English") { state.setLanguage(language) }
+                    .buttonStyle(.plain)
+                    .font(chosen ? Theme.Typeface.captionStrong : Theme.Typeface.caption)
+                    .foregroundStyle(chosen ? Theme.ink : Theme.inkMuted)
+            }
         }
     }
 }
@@ -516,7 +542,7 @@ struct HoldKeyField: View {
                     .foregroundStyle(Theme.inkMuted)
             }
             Button(action: toggle) {
-                Text(capture.listening ? "Nhấn phím…" : (unchosen ? "Chọn phím" : state.holdKey.label))
+                Text(capture.listening ? tr("Nhấn phím…") : (unchosen ? tr("Chọn phím") : state.holdKey.shown))
                     .font(Theme.Typeface.mono)
                     .foregroundStyle(capture.listening ? Theme.signal : Theme.ink)
                     .padding(.horizontal, Theme.Space.m)
@@ -528,7 +554,7 @@ struct HoldKeyField: View {
                     )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Phím nói, hiện là \(state.holdKey.label). Bấm để đổi.")
+            .accessibilityLabel(tr("Phím nói, hiện là %@. Bấm để đổi.", "\(state.holdKey.shown)"))
         }
         .onDisappear { capture.stop() }
     }

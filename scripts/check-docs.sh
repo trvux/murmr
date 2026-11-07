@@ -46,6 +46,7 @@ def shape(text):
     norm = []
     for t in targets:
         t = t.split("#")[0].replace(".vi.md", ".md")  # a heading anchor is written in its own language
+        t = re.sub(r"/(en|vi)/", "/<lang>/", t)  # pictures live in docs/en/ and docs/vi/ with the same names
         if t.startswith("https://img.shields.io/badge/"):
             t = "https://img.shields.io/badge/*"  # the words on a static badge are translated
         if t:

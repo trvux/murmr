@@ -1,0 +1,3 @@
+# Sample forms of address, used to draw the screenshots in the README (never your own apps.txt).
+profile toi-ban = tôi / bạn
+default toi-ban

@@ -23,6 +23,14 @@ in the first line. Change both in the same commit and run `scripts/check-docs.sh
 gains a section, table row, code block, image or link the other lacks. `CHANGELOG.md` stays English (the release notes
 come from it); the release page footer (`.github/release-footer.md`) carries both languages.
 
+## Interface languages
+
+The app speaks English and Vietnamese (`L10n.swift`). Words in the code are Vietnamese and are the keys; English lives in
+`app/Resources/en.lproj/Localizable.strings`. When you add or change interface text: write it in Vietnamese, add the English
+entry, put plain-`String` text through `tr("...")`, and pass values as `tr("... %@", value)` (never `\(value)` inside the
+literal). `scripts/check-strings.sh` (CI) enforces it; look at the result with `--snapshot <page> out.png lang=en`. The engine's
+own notices use `ui(vi, en)` in `uitext.go`. Pictures for the README are drawn by `app/scripts/docs-images.sh`.
+
 ## UI work: brand first, code second
 
 Read `DESIGN.md` before changing anything visual. The product has one deliberate look (quiet

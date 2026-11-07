@@ -19,10 +19,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         state.restartHandler = { [weak self] in self?.engine.restart() }
         state.holdKeyHandler = { [weak self] spec in self?.engine.sendHoldKey(spec) }
         state.keyCaptureHandler = { [weak self] on in self?.engine.setKeyCapturing(on) }
+        state.languageHandler = { [weak self] language in
+            self?.engine.sendLanguage(language)
+            self?.buildMenus()  // the menu words are plain strings, so they are made again in the new language
+        }
         panel = NotchPanel(state: state)
         panel.orderFrontRegardless()
-        buildMenu()
-        buildMainMenu()
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        updateIcon(for: .idle)
+        buildMenus()
 
         state.$phase
             .sink { [weak self] phase in
@@ -52,10 +57,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: menu bar
 
-    private func buildMenu() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        updateIcon(for: .idle)
+    private func buildMenus() {
+        buildMenu()
+        buildMainMenu()
+    }
 
+    private func buildMenu() {
         let menu = NSMenu()
         menu.delegate = self
 
@@ -67,12 +74,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(statusLine)
         menu.addItem(.separator())
 
-        menu.addItem(item("Xem thử hiệu ứng notch", #selector(runDemo)))
-        menu.addItem(item("Cài đặt…", #selector(openSettings), key: ","))
-        menu.addItem(item("Khởi động lại engine", #selector(restartEngine)))
-        menu.addItem(item("Hướng dẫn ban đầu…", #selector(openWelcome)))
+        menu.addItem(item(tr("Xem thử hiệu ứng notch"), #selector(runDemo)))
+        menu.addItem(item(tr("Cài đặt…"), #selector(openSettings), key: ","))
+        menu.addItem(item(tr("Khởi động lại engine"), #selector(restartEngine)))
+        menu.addItem(item(tr("Hướng dẫn ban đầu…"), #selector(openWelcome)))
         menu.addItem(.separator())
-        menu.addItem(item("Thoát", #selector(quit), key: "q"))
+        menu.addItem(item(tr("Thoát"), #selector(quit), key: "q"))
 
         statusItem.menu = menu
     }
@@ -84,19 +91,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let appItem = NSMenuItem()
         main.addItem(appItem)
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "Ẩn cửa sổ", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        appMenu.addItem(withTitle: tr("Ẩn cửa sổ"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         appItem.submenu = appMenu
 
         let editItem = NSMenuItem()
         main.addItem(editItem)
-        let edit = NSMenu(title: "Sửa")
-        edit.addItem(withTitle: "Hoàn tác", action: Selector(("undo:")), keyEquivalent: "z")
-        edit.addItem(withTitle: "Làm lại", action: Selector(("redo:")), keyEquivalent: "Z")
+        let edit = NSMenu(title: tr("Sửa"))
+        edit.addItem(withTitle: tr("Hoàn tác"), action: Selector(("undo:")), keyEquivalent: "z")
+        edit.addItem(withTitle: tr("Làm lại"), action: Selector(("redo:")), keyEquivalent: "Z")
         edit.addItem(.separator())
-        edit.addItem(withTitle: "Cắt", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
-        edit.addItem(withTitle: "Sao chép", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-        edit.addItem(withTitle: "Dán", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
-        edit.addItem(withTitle: "Chọn tất cả", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        edit.addItem(withTitle: tr("Cắt"), action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: tr("Sao chép"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: tr("Dán"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: tr("Chọn tất cả"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         editItem.submenu = edit
         NSApp.mainMenu = main
     }

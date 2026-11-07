@@ -37,7 +37,7 @@ hợp phím không gõ ra chữ) cho terminal của bạn. Không có khoá dọ
 
 `app/` là một app trên thanh menu (Swift, SwiftUI, không cần Xcode) chạy engine Go và vẽ trạng thái lên tai thỏ: một viên
 thuốc đen mọc ra từ đó khi bạn giữ phím, hiện một đường sóng mảnh chạy theo giọng bạn, rồi "Đang chép lời" / "Đang dọn
-văn", rồi đến chữ đã dán. Màn hình không có tai thỏ thì nó nổi dưới mép trên.
+văn" ("Transcribing" / "Cleaning up" trong tiếng Anh), rồi đến chữ đã dán. Màn hình không có tai thỏ thì nó nổi dưới mép trên.
 
 ```sh
 app/scripts/bundle.sh                 # build engine, whisper-server và "Murmr Stream.app" vào app/build/
@@ -49,7 +49,7 @@ open "app/build/Murmr Stream.app"
   giúp bạn và cần `brew install cmake`). `whisper-cpp` của Homebrew chỉ cần để chạy từ terminal bằng `./run.sh`; nó liên kết
   thư viện bằng đường dẫn tuyệt đối và chỉ build cho macOS mới nhất, nên không thể bỏ vào app. Khi khởi động, engine cũng
   dừng một `whisper-server` mồ côi còn sót trên cổng của nó sau một lần chạy bị sập.
-- **Cửa sổ chào.** Lần đầu mở (và từ menu) một hướng dẫn ngắn mời bạn chọn phím, đi qua ba quyền với trạng thái trực tiếp,
+- **Cửa sổ chào.** Lần đầu mở (và từ menu) một hướng dẫn ngắn mời bạn chọn phím (và ngôn ngữ, ở góc cửa sổ), đi qua ba quyền với trạng thái trực tiếp,
   rồi hiện tiến độ tải model. Nếu một bản cập nhật làm thiếu quyền, nó mở lại ở bước quyền, một lần cho mỗi bản build.
 - **Quyền.** Với chữ ký ad-hoc, macOS quên chúng sau mỗi lần build lại; để giữ, hãy tạo một chứng chỉ ký mã tự cấp trong
   keychain và build bằng `MURMR_SIGN_ID="<tên của nó>" app/scripts/bundle.sh`.
@@ -62,11 +62,30 @@ open "app/build/Murmr Stream.app"
 - Phụ đề trực tiếp khi bạn đang nói có sẵn nhưng mặc định tắt (`MURMR_PREVIEW=on`): nó cần một Whisper server thứ hai nhanh
   hơn (thêm khoảng 600 MB RAM) và chỉ cập nhật khoảng mỗi 0,6 giây, vì Whisper mã hoá một cửa sổ cố định cho mỗi lần giải mã.
 
+## Ngôn ngữ của giao diện
+
+App nói tiếng Anh và tiếng Việt. Thiết lập là **Tự động** (tiếng Việt khi ngôn ngữ đầu tiên của máy Mac là tiếng Việt, còn lại
+là tiếng Anh), hoặc một lựa chọn cố định, lưu trong tuỳ chọn `uiLanguage` và đổi ngay trong Cài đặt, mục Chung.
+
+- Chữ trong mã nguồn là tiếng Việt và là khoá. Tiếng Anh nằm ở `app/Resources/en.lproj/Localizable.strings`; tiếng Việt không
+  cần file. Chữ viết thẳng trong `Text("...")` của SwiftUI được SwiftUI tự tra, còn chữ đến màn hình dưới dạng chuỗi thường
+  thì đi qua `tr("...")` (xem `L10n.swift`). Giá trị chèn vào bằng `tr("... %@", giá trị)`, không bao giờ nằm trong chuỗi viết sẵn.
+- Engine Go tự viết một vài thông báo (một lỗi, "dịch vụ dự phòng đã trả lời"). App đặt ngôn ngữ của nó bằng `MURMR_LANG` lúc
+  khởi động và một dòng `lang vi|en` trên stdin (`uitext.go`). Phần mô tả các dịch vụ AI trong `providers.go` có bản tiếng
+  Anh trong cùng file chuỗi.
+- `scripts/check-strings.sh` (chạy trong CI) báo lỗi khi một chữ tiếng Việt đến màn hình mà thiếu bản tiếng Anh, được viết ở
+  chỗ không có gì dịch nó, hoặc có giá trị trộn vào chuỗi. Self-test kiểm tra logic chọn ngôn ngữ.
+- `app/scripts/docs-images.sh` vẽ banner, hướng dẫn mở lần đầu và ảnh chụp app ở cả hai ngôn ngữ vào `docs/en/` và
+  `docs/vi/`, với dữ liệu mẫu thay vì dữ liệu của bạn. Nền của file cài đặt không đổi ngôn ngữ được nên nó ghi cả hai.
+
+Muốn thêm một ngôn ngữ: chép `en.lproj` thành `<mã>.lproj`, dịch các giá trị, thêm mã đó vào `UILanguage` và vào
+`CFBundleLocalizations` trong `Info.plist`, và cho engine viết thông báo của nó bằng ngôn ngữ đó.
+
 ## Thiết kế
 
 Diện mạo là một hệ thống có chủ ý, không phải mặc định: đọc [DESIGN.md](../DESIGN.md). Mọi giá trị hình ảnh nằm trong
 `app/Sources/MurmrStream/Theme.swift`, `app/scripts/design-lint.sh` từ chối giá trị thô và các mẫu bị cấm, và
-`MurmrStream --snapshot <dictionary|apps|ai|appearance|general|pills> out.png [dark]` vẽ giao diện ngoài màn hình để kiểm tra.
+`MurmrStream --snapshot <dictionary|apps|ai|appearance|general|pills> out.png [dark] [lang=en|vi]` vẽ giao diện ngoài màn hình để kiểm tra.
 
 ## Lệnh
 

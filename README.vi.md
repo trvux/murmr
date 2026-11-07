@@ -2,8 +2,8 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/banner-dark.png">
-    <img src="docs/banner-light.png" alt="Murmr Stream" width="820">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/vi/banner-dark.png">
+    <img src="docs/vi/banner-light.png" alt="Murmr Stream" width="820">
   </picture>
 </p>
 
@@ -20,7 +20,7 @@ nhận dạng giọng nói diễn ra trên máy Mac của bạn. Một bước A
 [![Giấy phép](https://img.shields.io/github/license/trvux/murmr?style=flat-square)](LICENSE)
 
 <p align="center">
-  <img src="docs/screenshots/notch.png" alt="Viên thuốc đen mọc ra từ tai thỏ: đang nghe, đang chép lời, xong và báo lỗi" width="560">
+  <img src="docs/vi/notch.png" alt="Viên thuốc đen mọc ra từ tai thỏ: đang nghe, đang chép lời, xong và báo lỗi" width="560">
 </p>
 
 ## Cách hoạt động
@@ -43,13 +43,12 @@ Phím do bạn chọn. Có thể là một phím bổ trợ đứng một mình 
 | **AI dọn văn** | Bỏ từ đệm, sửa dấu câu và các thuật ngữ tiếng Anh nghe sai, giữ nguyên tiếng Việt và tiếng Anh như bạn nói. Dùng được với DeepSeek, Claude, OpenAI, Gemini, Kimi, OpenRouter, Ollama chạy ngay trên máy bạn, hoặc bất kỳ địa chỉ nào tương thích OpenAI. Không có khoá thì bạn vẫn nhận được chữ thô. |
 | **Cách xưng hô của riêng bạn** | Nói thế nào ghi thế ấy: "tao / mày", "tôi / bạn", "mình / cậu", "anh / em". Đặt một mặc định, hoặc riêng cho từng app, từng tiêu đề cửa sổ. App không tự giả định thay bạn. |
 | **Từ điển cá nhân** | Tên riêng, thuật ngữ và các cặp sửa `sai -> Đúng`, được đưa cho cả Whisper lẫn AI. Nó cũng học những lỗi lặp lại từ cách bạn dùng. |
+| **Tiếng Việt và tiếng Anh** | App nói được cả hai. Nó theo ngôn ngữ của máy Mac, hoặc bạn chọn trong Cài đặt, mục Chung. Ngôn ngữ bạn đọc chính tả là chuyện riêng: Whisper tự nghe theo giọng bạn. |
 | **Riêng tư từ thiết kế** | Không tài khoản, không máy chủ của chúng tôi, không thu thập dữ liệu. Khoá nằm trong Keychain của macOS. Xem [PRIVACY.vi.md](PRIVACY.vi.md). |
 
 <p align="center">
-  <img src="docs/screenshots/pronouns.png" alt="Trang Xưng hô trong cửa sổ Cài đặt" width="720">
+  <img src="docs/vi/pronouns.png" alt="Trang Xưng hô trong cửa sổ Cài đặt" width="720">
 </p>
-
-> Giao diện của app hiện đang bằng tiếng Việt.
 
 ## Cài đặt
 
@@ -61,15 +60,15 @@ Phím do bạn chọn. Có thể là một phím bổ trợ đứng một mình 
    xuống mục **Security**, bấm **Open Anyway**, rồi xác nhận bằng mật khẩu hoặc Touch ID.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/first-launch-dark.png">
-  <img src="docs/first-launch.png" alt="Ba bước mở app lần đầu: bấm Done ở cảnh báo, mở Privacy &amp; Security, bấm Open Anyway" width="820">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/vi/first-launch-dark.png">
+  <img src="docs/vi/first-launch.png" alt="Ba bước mở app lần đầu: bấm Done ở cảnh báo, mở Privacy &amp; Security, bấm Open Anyway" width="820">
 </picture>
 
 Sau đó một cửa sổ chào ngắn sẽ mời bạn chọn phím nói, cho phép ba quyền mà macOS hỏi, và tải các model giọng nói
 (574 MB, chỉ một lần). Cần máy Mac chip Apple Silicon và macOS 14 trở lên (build cho 14, đã thử trên macOS 15 trở lên).
 
 <p align="center">
-  <img src="docs/screenshots/welcome.png" alt="Cửa sổ chào: chọn phím bạn giữ để nói" width="360">
+  <img src="docs/vi/welcome.png" alt="Cửa sổ chào: chọn phím bạn giữ để nói" width="360">
 </p>
 
 ## Cách dùng
@@ -89,6 +88,9 @@ app từ Applications, rồi trong danh sách của System Settings bấm **−*
 
 **Tôi bấm phím mà không có gì xảy ra.** Cần cấp đủ cả ba quyền (Micro, Giám sát đầu vào, Trợ năng) và các model phải tải
 xong. Cửa sổ chào cho thấy cả hai; mở lại nó từ biểu tượng trên thanh menu.
+
+**Đổi ngôn ngữ của app thế nào?** Cài đặt, Chung, Ngôn ngữ: Tự động (theo macOS), Tiếng Việt hoặc English. Đổi là có hiệu
+lực ngay, và cửa sổ chào cũng có nút chuyển này ở góc.
 
 **Không có khoá AI thì dùng được không?** Được. Bạn nhận chữ thô, vốn đã dùng được.
 

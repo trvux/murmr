@@ -12,18 +12,18 @@ enum PermissionKind: CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .microphone: return "Micro"
-        case .inputMonitoring: return "Giám sát đầu vào"
-        case .accessibility: return "Trợ năng"
+        case .microphone: return tr("Micro")
+        case .inputMonitoring: return tr("Giám sát đầu vào")
+        case .accessibility: return tr("Trợ năng")
         }
     }
 
     /// Why it is needed, in the plainest true words (the engine listens only to modifier-key changes, listen-only).
     var why: String {
         switch self {
-        case .microphone: return "Để nghe bạn nói. Chỉ thu âm khi bạn đang giữ phím."
-        case .inputMonitoring: return "Để biết lúc bạn giữ hoặc thả phím nói. App chỉ so với phím bạn đã chọn, không ghi lại và không đọc bạn gõ gì."
-        case .accessibility: return "Để dán chữ vào app bạn đang dùng."
+        case .microphone: return tr("Để nghe bạn nói. Chỉ thu âm khi bạn đang giữ phím.")
+        case .inputMonitoring: return tr("Để biết lúc bạn giữ hoặc thả phím nói. App chỉ so với phím bạn đã chọn, không ghi lại và không đọc bạn gõ gì.")
+        case .accessibility: return tr("Để dán chữ vào app bạn đang dùng.")
         }
     }
 

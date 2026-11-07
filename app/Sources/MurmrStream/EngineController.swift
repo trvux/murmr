@@ -78,8 +78,8 @@ final class EngineController {
     func start() {
         guard !starting, process == nil else { return }
         guard let exe = enginePath() else {
-            state.engineStatus = "Không tìm thấy engine murmr (build bằng go build -o murmr .)"
-            state.setPhase(.error("Không tìm thấy engine"), resetAfter: 5)
+            state.status = Say("Không tìm thấy engine murmr (build bằng go build -o murmr .)")
+            state.setPhase(.error(tr("Không tìm thấy engine")), resetAfter: 5)
             return
         }
         starting = true
@@ -104,6 +104,7 @@ final class EngineController {
         env.merge(keys) { _, new in new }  // keys saved in the Keychain win over the old env file
         env["MURMR_EVENTS"] = "1"
         env["MURMR_KEY"] = HoldKey.saved.spec  // the dictation key the person chose
+        env["MURMR_LANG"] = L10n.current.rawValue  // the few notices the engine words itself
         // A GUI app does not inherit the shell PATH; whisper-server lives in Homebrew's bin.
         env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + (env["PATH"] ?? "/usr/bin:/bin")
         p.environment = env
@@ -133,7 +134,7 @@ final class EngineController {
             try p.run()
         } catch {
             log("could not start engine: \(error.localizedDescription)")
-            state.engineStatus = "Không chạy được engine: \(error.localizedDescription)"
+            state.status = Say("Không chạy được engine: %@", error.localizedDescription)
             state.failLoading()
             return
         }
@@ -149,6 +150,9 @@ final class EngineController {
         stdinPipe?.fileHandleForWriting.closeFile()  // engine notices and shuts down cleanly
         process?.terminate()
     }
+
+    /// Tells the running engine which language to word its notices in ("vi" or "en"); it also reads MURMR_LANG at every start.
+    func sendLanguage(_ language: UILanguage) { send("lang \(UILanguage.resolve(language).rawValue)") }
 
     /// Tells the running engine to use another dictation key now (it also reads MURMR_KEY at every start).
     func sendHoldKey(_ spec: String) { send("key \(spec)") }
@@ -216,12 +220,12 @@ final class EngineController {
         }
         state.failLoading()
         failures = Date().timeIntervalSince(startedAt) > 20 ? 1 : failures + 1
-        let why = lastStderr.isEmpty ? "mã thoát \(code)" : lastStderr
+        let why = lastStderr.isEmpty ? tr("mã thoát %@", "\(code)") : lastStderr
         state.engineReady = false
-        state.engineStatus = "Engine dừng: \(why)"
+        state.status = Say("Engine dừng: %@", why)
         state.setPhase(.error(String(why.prefix(70))), resetAfter: 6)
         if failures >= 4 {
-            state.engineStatus += " (đã thử lại \(failures - 1) lần; chọn Khởi động lại engine sau khi sửa)"
+            state.status = Say("Engine dừng: %@ (đã thử lại %@ lần; chọn Khởi động lại engine sau khi sửa)", why, "\(failures - 1)")
             return
         }
         Task {

@@ -139,7 +139,7 @@ struct DictionaryPage: View {
                         Spacer()
                         HStack(spacing: Theme.Space.xs) {
                             if hint.active { Circle().fill(Theme.signal).frame(width: 6, height: 6) }
-                            Text(hint.active ? "Đang dùng" : "\(hint.count)/3 lần")
+                            Text(hint.active ? tr("Đang dùng") : tr("%@/3 lần", "\(hint.count)"))
                                 .font(Theme.Typeface.caption)
                                 .foregroundStyle(Theme.inkMuted)
                         }
@@ -155,7 +155,7 @@ struct DictionaryPage: View {
         if let mood {
             MascotNote(mood: mood, text: text, size: 48)
         } else {
-            Text(text).font(Theme.Typeface.caption).foregroundStyle(Theme.inkFaint)
+            Text(LocalizedStringKey(text)).font(Theme.Typeface.caption).foregroundStyle(Theme.inkFaint)
         }
     }
 }

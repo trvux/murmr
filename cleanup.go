@@ -236,12 +236,13 @@ func (f *fallbackCleaner) CleanNote(ctx context.Context, raw, extra string) (tex
 	log.Printf("cleanup: %s failed (%v), trying %s", f.primary.Name(), perr, f.backup.Name())
 	text, berr := f.backup.Clean(ctx, raw, extra)
 	if berr == nil && text != "" {
-		return text, providerTitle(f.primary.Name()) + " không trả lời, đã dùng " + providerTitle(f.backup.Name()), nil
+		primary, backup := providerTitle(f.primary.Name()), providerTitle(f.backup.Name())
+		return text, ui(primary+" không trả lời, đã dùng "+backup, primary+" did not answer, used "+backup), nil
 	}
 	if perr == nil {
 		perr = berr
 	}
-	return "", "Cả hai dịch vụ đều lỗi, dán nguyên văn", perr
+	return "", ui("Cả hai dịch vụ đều lỗi, dán nguyên văn", "Both services failed, pasted as is"), perr
 }
 
 // noteCleaner is implemented by cleaners that can explain what they did (the fallback one).

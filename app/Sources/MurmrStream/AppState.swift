@@ -38,14 +38,15 @@ final class AppState: ObservableObject {
     @Published var levels: [CGFloat] = Array(repeating: 0, count: AppState.historyCount)
     @Published var appIcon: NSImage?  // icon of the app the text will be pasted into
     @Published var style = ""  // the pronoun profile's label ("tao / mày") for the app being dictated into, or ""
-    @Published var engineStatus = "Đang khởi động…"
+    @Published var status = Say("Đang khởi động…")
+    var engineStatus: String { status.text }
     @Published var engineReady = false
     /// Startup progress: which step the engine reports, and an estimated 0...1 for the bar. The bar is an
     /// estimate (the engine does not know how long Whisper takes to load), so it creeps during that step.
     @Published var loadStage = ""  // "" when not loading
     @Published var loadProgress: Double = 0
     /// What the startup bar says instead of the step name while something specific is going on (a download).
-    @Published var loadDetail: String?
+    @Published var loadDetail: Say?
     private var downloadFraction: Double?  // 0...1 while the first-run model download is running
 
     var isLoading: Bool { !loadStage.isEmpty }
@@ -58,8 +59,19 @@ final class AppState: ObservableObject {
     func setHoldKey(_ key: HoldKey) {
         key.save()
         holdKey = key
-        engineStatus = engineReady ? "Sẵn sàng · giữ \(key.label) để nói" : engineStatus
+        if engineReady { status = Say("Sẵn sàng · giữ %@ để nói", key.shown) }
         holdKeyHandler?(key.spec)
+    }
+
+    /// The language of the app's words. `.auto` follows macOS. The engine is told too: it words a few notices itself.
+    @Published var language = L10n.saved
+    var languageHandler: ((UILanguage) -> Void)?
+
+    func setLanguage(_ choice: UILanguage) {
+        L10n.save(choice)
+        language = choice
+        if engineReady { status = Say("Sẵn sàng · giữ %@ để nói", holdKey.shown) }
+        languageHandler?(L10n.current)
     }
 
     var keyCaptureHandler: ((Bool) -> Void)?
@@ -83,20 +95,20 @@ final class AppState: ObservableObject {
             loadStage = ev.stage ?? ""
             stageStartedAt = Date()
             loadDetail = nil
-            engineStatus = Self.loadText(loadStage) + "…"
+            status = Say("%@…", Self.loadText(loadStage))
         case "download":
             // First launch only: the speech models are fetched. Real progress, not an estimate.
             if let done = ev.done, let total = ev.total, total > 0 {
                 if ev.name == "whisper" { downloadFraction = min(1, done / total) }  // the 0.9 MB voice-detection model is not worth a bar of its own
                 loadStage = "models"
                 loadDetail = ev.name == "whisper"
-                    ? "Đang tải model giọng nói · \(Int(done / 1_000_000)) / \(Int(total / 1_000_000)) MB"
-                    : "Đang tải model nhận biết tiếng nói"
-                engineStatus = loadDetail ?? ""
+                    ? Say("Đang tải model giọng nói · %@ / %@ MB", "\(Int(done / 1_000_000))", "\(Int(total / 1_000_000))")
+                    : Say("Đang tải model nhận biết tiếng nói")
+                if let loadDetail { status = loadDetail }
             }
         case "ready":
             engineReady = true
-            engineStatus = "Sẵn sàng · giữ \(holdKey.label) để nói"
+            status = Say("Sẵn sàng · giữ %@ để nói", holdKey.shown)
             setPhase(.idle)
             finishLoading()
         case "recording":
@@ -122,9 +134,9 @@ final class AppState: ObservableObject {
                 }
             }
         case "skipped":
-            setPhase(.notice(ev.reason == "silent" ? "Giữ phím hơi ngắn" : "Không nghe thấy gì"), resetAfter: 1.3)
+            setPhase(.notice(ev.reason == "silent" ? tr("Giữ phím hơi ngắn") : tr("Không nghe thấy gì")), resetAfter: 1.3)
         case "error":
-            setPhase(.error(ev.msg ?? "Có lỗi"), resetAfter: 4)
+            setPhase(.error(ev.msg ?? tr("Có lỗi")), resetAfter: 4)
         default:
             break
         }
@@ -132,13 +144,13 @@ final class AppState: ObservableObject {
 
     static func loadText(_ stage: String) -> String {
         switch stage {
-        case "starting": return "Đang khởi động"
-        case "dictionary": return "Đang nạp từ điển"
-        case "models": return "Đang kiểm tra model giọng nói"
-        case "whisper": return "Đang nạp model Whisper"
-        case "audio": return "Đang mở micro"
-        case "keys": return "Đang bật phím nói"
-        case "ready": return "Sẵn sàng"
+        case "starting": return tr("Đang khởi động")
+        case "dictionary": return tr("Đang nạp từ điển")
+        case "models": return tr("Đang kiểm tra model giọng nói")
+        case "whisper": return tr("Đang nạp model Whisper")
+        case "audio": return tr("Đang mở micro")
+        case "keys": return tr("Đang bật phím nói")
+        case "ready": return tr("Sẵn sàng")
         default: return ""
         }
     }
@@ -152,7 +164,7 @@ final class AppState: ObservableObject {
         loadDetail = nil
         downloadFraction = nil
         stageStartedAt = Date()
-        engineStatus = Self.loadText("starting") + "…"
+        status = Say("%@…", Self.loadText("starting"))
         loadTask?.cancel()
         loadTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -253,7 +265,7 @@ final class AppState: ObservableObject {
             setPhase(.cleaning)
             try? await Task.sleep(for: .seconds(0.9))
             if Task.isCancelled { return }
-            setPhase(.done("Chiều nay họp lúc ba giờ, nhớ gửi bản báo cáo trước nhé."), resetAfter: 2.4)
+            setPhase(.done(tr("Chiều nay họp lúc ba giờ, nhớ gửi bản báo cáo trước nhé.")), resetAfter: 2.4)
         }
     }
 }

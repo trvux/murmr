@@ -1,0 +1,3 @@
+/* Shown by macOS in its own permission dialogs. */
+"NSMicrophoneUsageDescription" = "Murmr Stream records your voice only while you hold the dictation key.";
+"NSAppleEventsUsageDescription" = "Murmr Stream pastes the transcribed text into the app you are using.";

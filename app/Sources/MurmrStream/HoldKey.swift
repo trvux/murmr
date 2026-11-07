@@ -2,10 +2,20 @@ import AppKit
 import Foundation
 
 /// The key held to dictate. The engine takes it as a spec (see holdkey.go): "mod:61" is a modifier on its own (the right
-/// Option), "combo:49:c0000" is a key with modifiers (Control+Option+Space). The label is what people read.
+/// Option), "combo:49:c0000" is a key with modifiers (Control+Option+Space). `shown` is what people read.
 struct HoldKey: Equatable {
     var spec: String
-    var label: String
+    var label: String  // as saved: for a modifier on its own this is the Vietnamese name, so read `shown` instead
+
+    /// The name in the interface language. A modifier on its own is named from its code ("Right ⌥", "⌥ phải"); a
+    /// combination is glyphs and a key name ("⌃⌥ Space", "F13"), the same in both languages.
+    var shown: String {
+        if spec.hasPrefix("mod:"), let code = Int(spec.dropFirst(4).split(separator: ":").first ?? ""),
+           let key = HoldKeyRecognizer.modifierKeys[code] {
+            return tr(key.label)
+        }
+        return label
+    }
 
     static let standard = HoldKey(spec: "mod:61", label: "⌥ phải")
 
@@ -30,13 +40,13 @@ struct HoldKey: Equatable {
     /// What is worth knowing about this key, said once under it (nil when there is nothing to add).
     var note: String? {
         if !isModifierOnly {
-            return "Khi bạn giữ tổ hợp này, nó không đến được app đang dùng. Nó cũng có thể trùng phím tắt của một app khác; phím ⌥, ⌘, ⌃ hay fn đứng một mình thì không trùng."
+            return tr("Khi bạn giữ tổ hợp này, nó không đến được app đang dùng. Nó cũng có thể trùng phím tắt của một app khác; phím ⌥, ⌘, ⌃ hay fn đứng một mình thì không trùng.")
         }
         if spec == "mod:63" {
-            return "Phím fn có thể mở Emoji hoặc Dictation của macOS. Tắt trong System Settings, Keyboard nếu bị vướng."
+            return tr("Phím fn có thể mở Emoji hoặc Dictation của macOS. Tắt trong System Settings, Keyboard nếu bị vướng.")
         }
         if spec != Self.standard.spec && spec != "mod:58" {
-            return "Phím này hay nằm trong phím tắt (ví dụ ⌘C), nên app chờ một chút và bỏ qua nếu có phím khác bấm cùng."
+            return tr("Phím này hay nằm trong phím tắt (ví dụ ⌘C), nên app chờ một chút và bỏ qua nếu có phím khác bấm cùng.")
         }
         return nil
     }
@@ -67,8 +77,8 @@ struct HoldKeyRecognizer {
 
     /// key code -> (device flag, label) for the modifier keys that can be a dictation key on their own.
     static let modifierKeys: [Int: (mask: UInt, label: String)] = [
-        61: (0x40, "⌥ phải"), 58: (0x20, "⌥ trái"), 54: (0x10, "⌘ phải"), 55: (0x8, "⌘ trái"),
-        62: (0x2000, "⌃ phải"), 59: (0x1, "⌃ trái"), 60: (0x4, "⇧ phải"), 56: (0x2, "⇧ trái"), 63: (fnFlag, "fn"),
+        61: (0x40, "⌥ phải"), 58: (0x20, "⌥ trái"), 54: (0x10, "⌘ phải"), 55: (0x8, "⌘ trái"),  // l10n-ok: keys, translated where shown
+        62: (0x2000, "⌃ phải"), 59: (0x1, "⌃ trái"), 60: (0x4, "⇧ phải"), 56: (0x2, "⇧ trái"), 63: (fnFlag, "fn"),  // l10n-ok
     ]
 
     private static let functionKeys: [Int: String] = [
@@ -102,13 +112,13 @@ struct HoldKeyRecognizer {
         if e.keyCode == 53 && mods == 0 { return .cancel }  // Esc
         let isFunctionKey = Self.functionKeys[e.keyCode] != nil
         if !isFunctionKey && mods & (Self.control | Self.option | Self.command) == 0 {
-            return .reject("Phím này sẽ gõ ra chữ ở app đang dùng. Giữ thêm ⌘, ⌃ hoặc ⌥, hoặc dùng một phím chức năng (F1 đến F20).")
+            return .reject(tr("Phím này sẽ gõ ra chữ ở app đang dùng. Giữ thêm ⌘, ⌃ hoặc ⌥, hoặc dùng một phím chức năng (F1 đến F20)."))
         }
         if mods == Self.command && Self.reservedWithCommand.contains(e.keyCode) {
-            return .reject("Tổ hợp này là phím tắt quen thuộc của macOS, chọn tổ hợp khác.")
+            return .reject(tr("Tổ hợp này là phím tắt quen thuộc của macOS, chọn tổ hợp khác."))
         }
         let name = Self.functionKeys[e.keyCode] ?? Self.specialKeys[e.keyCode] ?? e.characters.uppercased()
-        guard !name.isEmpty else { return .reject("Không nhận ra phím này, thử phím khác.") }
+        guard !name.isEmpty else { return .reject(tr("Không nhận ra phím này, thử phím khác.")) }
         let label = (Self.glyphs(mods) + " " + name).trimmingCharacters(in: .whitespaces)
         return .commit(HoldKey(spec: "combo:\(e.keyCode):\(String(mods, radix: 16))", label: label))
     }

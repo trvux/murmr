@@ -54,10 +54,15 @@ final class AISettings: ObservableObject {
     /// The lists the providers returned, newest first, once fetched.
     @Published private(set) var models: [String: [ModelOption]] = [:]
     @Published private(set) var loadingModels: Set<String> = []
-    @Published private(set) var modelErrors: [String: String] = [:]
+    @Published private(set) var modelErrors: [String: Say] = [:]
     @Published private(set) var testing: String?
-    @Published private(set) var testResults: [String: String] = [:]
-    @Published var message: String?
+    /// What a key test found. `ok` is kept apart from the words so nothing has to read them to tell success from failure.
+    struct TestResult: Equatable {
+        var ok: Bool
+        var say: Say
+    }
+    @Published private(set) var testResults: [String: TestResult] = [:]
+    @Published var message: Say?
 
     /// Called after anything the engine only reads at startup changes.
     var onChanged: () -> Void = {}
@@ -184,7 +189,7 @@ final class AISettings: ObservableObject {
         let key = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return false }
         guard KeychainStore.write(key, account: p.keyEnv) else {
-            message = "Không lưu được khoá vào Keychain."
+            message = Say("Không lưu được khoá vào Keychain.")
             return false
         }
         message = nil
@@ -239,15 +244,15 @@ final class AISettings: ObservableObject {
         if p.takesKey, let key = Self.activeKey(for: p) { env[p.keyEnv] = key }
         if let config = Self.configJSON(only: p.id) { env["MURMR_PROVIDER_CONFIG"] = config }
         guard let output = await EngineCLI.run(["models", p.id], env: env) else {
-            modelErrors[p.id] = "Không tìm thấy engine."
+            modelErrors[p.id] = Say("Không tìm thấy engine.")
             return
         }
         guard output.status == 0, let data = output.out.data(using: .utf8),
               let list = try? JSONDecoder().decode([ModelOption].self, from: data)
         else {
             modelErrors[p.id] = p.local
-                ? "Không kết nối được tới \(baseURL(p)). Dịch vụ đã chạy chưa?"
-                : "Chưa tải được danh sách model. Kiểm tra mạng hoặc thử lại."
+                ? Say("Không kết nối được tới %@. Dịch vụ đã chạy chưa?", baseURL(p))
+                : Say("Chưa tải được danh sách model. Kiểm tra mạng hoặc thử lại.")
             return
         }
         models[p.id] = list
@@ -260,21 +265,22 @@ final class AISettings: ObservableObject {
         testResults[p.id] = nil
         defer { testing = nil }
         guard model(for: p) != "" else {
-            testResults[p.id] = "Chưa chọn model."
+            testResults[p.id] = TestResult(ok: false, say: Say("Chưa chọn model."))
             return
         }
         var env = ["MURMR_CLEANUP": p.id]
         if p.takesKey, let key = Self.activeKey(for: p) { env[p.keyEnv] = key }
         if let config = Self.configJSON(only: p.id) { env["MURMR_PROVIDER_CONFIG"] = config }
-        guard let output = await EngineCLI.run(["clean", "xin chào"], env: env) else {
-            testResults[p.id] = "Không tìm thấy engine."
+        guard let output = await EngineCLI.run(["clean", "xin chào"], env: env) else {  // l10n-ok: the sentence sent to the AI, not interface text
+            testResults[p.id] = TestResult(ok: false, say: Say("Không tìm thấy engine."))
             return
         }
         if output.status == 0 {
-            testResults[p.id] = p.local ? "Dịch vụ trên máy đang chạy tốt." : "Khoá hoạt động."
+            testResults[p.id] = TestResult(ok: true, say: Say(p.local ? tr("Dịch vụ trên máy đang chạy tốt.") : tr("Khoá hoạt động.")))
         } else {
-            let line = output.err.split(whereSeparator: \.isNewline).last(where: { $0.contains("murmr:") }) ?? output.err.split(whereSeparator: \.isNewline).last ?? "lỗi không rõ"
-            testResults[p.id] = "Không dùng được: " + String(line).replacingOccurrences(of: "murmr: ", with: "").prefix(140)
+            let line = output.err.split(whereSeparator: \.isNewline).last(where: { $0.contains("murmr:") }) ?? output.err.split(whereSeparator: \.isNewline).last
+            let why = line.map { String($0).replacingOccurrences(of: "murmr: ", with: "") } ?? tr("lỗi không rõ")
+            testResults[p.id] = TestResult(ok: false, say: Say("Không dùng được: %@", String(why.prefix(140))))
         }
     }
 }

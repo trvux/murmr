@@ -27,7 +27,7 @@ text, and pastes the result. There is no server operated by the author, no accou
 | Data | Where | Notes |
 |---|---|---|
 | Your voice | Memory only | Transcribed locally. Not written to disk unless you set `MURMR_SAVE`. |
-| API keys | Your macOS login Keychain. The app does not mark them as synchronizable, so iCloud Keychain does not copy them to other devices (checked with a self-test). | Set in Settings, "AI và khoá API". A key left in the older `~/.config/murmr/env` file stays there until you move or delete it. |
+| API keys | Your macOS login Keychain. The app does not mark them as synchronizable, so iCloud Keychain does not copy them to other devices (checked with a self-test). | Set in Settings, on the AI page. A key left in the older `~/.config/murmr/env` file stays there until you move or delete it. |
 | Dictations (raw and final text, app id) | `~/.config/murmr/history.jsonl` | Used to learn recurring corrections. Turn off with `MURMR_HISTORY=off`. No audio. |
 | Dictionary and app rules | `~/.config/murmr/dictionary.txt`, `apps.txt` | Plain text you can edit. |
 | Engine log | `~/Library/Logs/Murmr Stream/engine.log` | Startup and error messages. The dictated text is not written to it. |
@@ -45,14 +45,14 @@ When AI cleanup is on, each dictation sends one request **directly from your com
 
 The request contains:
 
-- the transcript text (after your "sửa cứng" dictionary fixes);
+- the transcript text (after your "Hard fixes" in the dictionary);
 - the cleanup instructions, which include the **terms from your personal dictionary** and the **learned
   hints** (pairs of "heard X, meant Y" from your history), plus a short pronoun-style note;
 - your API key, as the service's authentication.
 
 It does **not** contain audio, the name of the app you are dictating into, window titles, or your history file.
 If a request fails or takes longer than 8 seconds, the raw transcript is pasted instead.
-If you turn on "Tự chuyển sang … khi bị lỗi" in Settings (off by default, and only possible with a key for both
+If you choose a backup service in Settings (the AI page, "Backup"; off by default, and only possible with a key for both
 services), the same text is then sent to the **other** service when the chosen one fails, and the notch tells you
 when that happened.
 
@@ -61,7 +61,7 @@ Separately, when you save a key or open Settings, the app asks the same service 
 no dictated text.
 
 Each service has its own terms and data policies (an aggregator such as OpenRouter adds one more party between you and the model). Read them before enabling a service, because
-dictated text can contain private things. If you choose "Không dùng AI", no text is sent anywhere.
+dictated text can contain private things. If you choose "No AI", no text is sent anywhere.
 
 ## The keyboard
 
@@ -74,7 +74,7 @@ front while you hold it (this uses the Accessibility permission).
 
 Nothing. The code makes no other network calls: the only addresses it contacts are the service you chose (and the backup, if you
 enabled one), the address of a custom service you typed, and `127.0.0.1` (the local whisper server). It has no telemetry, analytics or crash reporting.
-Links in the app (for example "Lấy khoá") open in your browser only when you click them.
+Links in the app (for example "Get a key") open in your browser only when you click them.
 
 ## Removing your data
 
@@ -83,8 +83,8 @@ Quit the app, then delete:
 - `~/.config/murmr/` (dictionary, app rules, history, old env file)
 - `~/Library/Logs/Murmr Stream/`
 - `~/Library/Application Support/Murmr Stream/` (the downloaded speech models)
-- the Keychain items under the service `dev.trvux.murmr-stream` (Keychain Access, or Settings, "AI và khoá API",
-  "Xoá khoá")
+- the Keychain items under the service `dev.trvux.murmr-stream` (Keychain Access, or Settings, the AI page,
+  "Delete key")
 - the app's preferences (`defaults delete dev.trvux.murmr-stream`)
 
 ## Downloads

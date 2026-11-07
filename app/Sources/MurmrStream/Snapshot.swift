@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Development tool: `MurmrStream --snapshot <dictionary|apps|ai|appearance|general|pills> <out.png> [dark]` draws the Settings
 /// window offscreen into a PNG, so the design can be checked without opening a window or needing
-/// the Screen Recording permission.
+/// the Screen Recording permission. Add `lang=en` or `lang=vi` to draw it in that language.
 @MainActor
 enum Snapshot {
     static func run(arguments: [String]) {
@@ -22,10 +22,10 @@ enum Snapshot {
 
         let state = AppState()
         state.engineReady = true
-        state.engineStatus = "Sẵn sàng · giữ \(state.holdKey.label) để nói"
+        state.status = Say("Sẵn sàng · giữ %@ để nói", state.holdKey.shown)
         if ProcessInfo.processInfo.environment["MURMR_SNAPSHOT_ENGINE"] == "stopped" {  // the failed state, for checking its look
             state.engineReady = false
-            state.engineStatus = "Engine dừng: không tải được model giọng nói"
+            state.status = Say("Engine dừng: %@", tr("không tải được model giọng nói"))
         }
         if ProcessInfo.processInfo.environment["MURMR_SNAPSHOT_PENDING"] == "1" { state.needsRestart = true }
         if ProcessInfo.processInfo.environment["MURMR_SNAPSHOT_LOADING"] == "1" {  // show the startup bar
@@ -70,7 +70,7 @@ enum Snapshot {
         if step == .prepare {
             state.loadStage = "models"
             state.loadProgress = 0.38
-            state.loadDetail = "Đang tải model giọng nói · 218 / 574 MB"
+            state.loadDetail = Say("Đang tải model giọng nói · %@ / %@ MB", "218", "574")
         }
         if step == .ready { state.engineReady = true }
         let permissions = Permissions(preview: step == .permissions
@@ -98,10 +98,10 @@ enum Snapshot {
             let phase: Phase
         }
         let rows = [
-            Row(label: "đang nói", phase: .recording),
-            Row(label: "đang chép lời", phase: .transcribing),
-            Row(label: "xong (câu dài)", phase: .done("Chiều nay họp lúc ba giờ, nhớ gửi bản báo cáo trước nhé.")),
-            Row(label: "lỗi", phase: .error("Không dán được, cần quyền Accessibility")),
+            Row(label: tr("đang nói"), phase: .recording),
+            Row(label: tr("đang chép lời"), phase: .transcribing),
+            Row(label: tr("xong (câu dài)"), phase: .done(tr("Chiều nay họp lúc ba giờ, nhớ gửi bản báo cáo trước nhé."))),
+            Row(label: tr("lỗi"), phase: .error(tr("Không dán được, cần quyền Accessibility"))),
         ]
         let layout = NotchLayout()
         layout.hasNotch = true
@@ -237,7 +237,7 @@ enum Snapshot {
             for p in settings.providers where settings.isReady(p) && p.needsKey {
                 await settings.loadModels(p)
                 let list = settings.models[p.id] ?? []
-                print("\(p.id): \(list.count) models, error: \(settings.modelErrors[p.id] ?? "none")")
+                print("\(p.id): \(list.count) models, error: \(settings.modelErrors[p.id]?.text ?? "none")")
                 for m in list.prefix(8) { print("  \(m.deprecated ? "old" : "new") \(m.id)  (\(m.name))") }
             }
             done.signal()
@@ -403,6 +403,47 @@ enum Snapshot {
               [HoldKey.standard, HoldKey(spec: "mod:55", label: "x"), HoldKey(spec: "mod:63", label: "x"), HoldKey(spec: "combo:49:c0000", label: "x")]
                 .compactMap(\.note).allSatisfy { !$0.lowercased().contains("raycast") })
         check("choosing ignores the first moments, so the click that began it cannot be taken as the key", HoldKeyCapture.settle >= 0.2)
+        // --- the interface languages
+        check("a Vietnamese Mac gets Vietnamese, any other gets English",
+              UILanguage.resolve(.auto, preferred: ["vi-VN", "en-US"]) == .vi
+              && UILanguage.resolve(.auto, preferred: ["en-US", "vi-VN"]) == .en
+              && UILanguage.resolve(.auto, preferred: ["fr-FR"]) == .en
+              && UILanguage.resolve(.auto, preferred: []) == .en)
+        check("a fixed choice stays fixed", UILanguage.resolve(.vi, preferred: ["en-US"]) == .vi && UILanguage.resolve(.en, preferred: ["vi"]) == .en)
+        check("Vietnamese words are their own keys", L10n.tr("Lưu", in: .vi) == "Lưu")
+        if L10n.tr("Lưu", in: .en) == "Lưu" {
+            print("info the language files are not next to the app: the English lookup checks were skipped")
+        } else {
+            check("English comes from the language file", L10n.tr("Lưu", in: .en) == "Save")
+            check("values go where %@ is", L10n.tr("Sẵn sàng · giữ %@ để nói", "Right ⌥", in: .en) == "Ready · hold Right ⌥ to talk")
+            check("a modifier key is named in the language", {
+                let saved = L10n.choice
+                defer { L10n.choice = saved }
+                L10n.choice = .en
+                let english = HoldKey.standard.shown
+                L10n.choice = .vi
+                return english == "Right ⌥" && HoldKey.standard.shown == "⌥ phải"
+            }())
+            check("a combination reads the same in both", {
+                let saved = L10n.choice
+                defer { L10n.choice = saved }
+                let combo = HoldKey(spec: "combo:49:c0000", label: "⌃⌥ Space")
+                L10n.choice = .en
+                let a = combo.shown
+                L10n.choice = .vi
+                return a == "⌃⌥ Space" && combo.shown == "⌃⌥ Space"
+            }())
+            check("a status keeps its words apart from its values and follows the language", {
+                let saved = L10n.choice
+                defer { L10n.choice = saved }
+                let say = Say("Đang tải model giọng nói · %@ / %@ MB", "218", "574")
+                L10n.choice = .en
+                let a = say.text
+                L10n.choice = .vi
+                return a == "Downloading the speech model · 218 / 574 MB" && say.text == "Đang tải model giọng nói · 218 / 574 MB"
+            }())
+        }
+
         let watched = Permissions()
         watched.startPolling()
         watched.startPolling()  // a second window opens before the first one has closed

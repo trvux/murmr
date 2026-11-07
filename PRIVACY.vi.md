@@ -51,7 +51,7 @@ Yêu cầu chứa:
 - khoá API của bạn, dùng để xác thực với dịch vụ.
 
 Nó **không** chứa âm thanh, tên app bạn đang đọc chính tả vào, tiêu đề cửa sổ, hay file lịch sử của bạn. Nếu một yêu cầu
-thất bại hoặc quá 8 giây, chữ thô được dán thay vào. Nếu bạn bật "Tự chuyển sang … khi bị lỗi" trong Cài đặt (mặc định tắt,
+thất bại hoặc quá 8 giây, chữ thô được dán thay vào. Nếu bạn chọn một dịch vụ dự phòng trong Cài đặt (trang AI, mục "Dự phòng"; mặc định tắt,
 và chỉ làm được khi có khoá cho cả hai dịch vụ), cũng phần chữ đó sẽ được gửi tới dịch vụ **còn lại** khi dịch vụ đã chọn
 lỗi, và tai thỏ báo cho bạn biết khi điều đó xảy ra.
 

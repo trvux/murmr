@@ -4,6 +4,10 @@ import AppKit
 // run() blocks, so `delegate` stays alive for the whole session (NSApplication only holds it weakly).
 MainActor.assumeIsolated {
     let app = NSApplication.shared
+    // Developer hooks (snapshots, brand art) can draw in either language: `lang=en` or `lang=vi` anywhere on the line.
+    if let word = CommandLine.arguments.first(where: { $0.hasPrefix("lang=") }) {
+        L10n.choice = UILanguage(rawValue: String(word.dropFirst(5))) ?? .auto
+    }
     if let i = CommandLine.arguments.firstIndex(of: "--app-icon"), CommandLine.arguments.count > i + 1 {
         Snapshot.renderBrand(.icon, to: CommandLine.arguments[i + 1])
         return

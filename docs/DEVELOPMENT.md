@@ -36,8 +36,8 @@ a key combination from typing) for your terminal. Without a cleanup key it still
 ## The macOS app
 
 `app/` is a menu-bar app (Swift, SwiftUI, no Xcode needed) that runs the Go engine and draws the state on the notch: a
-black pill grows out of it while you hold the key, shows a slim wave that follows your voice, then "Đang chép lời" /
-"Đang dọn văn", then the pasted text. On a screen without a notch it floats under the top edge.
+black pill grows out of it while you hold the key, shows a slim wave that follows your voice, then "Transcribing" /
+"Cleaning up" ("Đang chép lời" / "Đang dọn văn" in Vietnamese), then the pasted text. On a screen without a notch it floats under the top edge.
 
 ```sh
 app/scripts/bundle.sh                 # builds the engine, whisper-server and "Murmr Stream.app" into app/build/
@@ -49,7 +49,7 @@ open "app/build/Murmr Stream.app"
   `bundle.sh` runs it for you and needs `brew install cmake`). Homebrew's `whisper-cpp` is only needed to run from a
   terminal with `./run.sh`; it links libraries by absolute path and is built for the newest macOS only, so it cannot be
   copied into an app. On start the engine also stops an orphaned `whisper-server` left on its port by a crashed run.
-- **Welcome window.** On first launch (and from the menu) a short guide has you choose your key, walks through the three
+- **Welcome window.** On first launch (and from the menu) a short guide has you choose your key (and, in its corner, the language), walks through the three
   permissions with live status, then shows the model download. If an update leaves a permission missing, it opens again at
   the permissions step, once per build.
 - **Permissions.** With ad-hoc signing macOS forgets them on every rebuild; to keep them, create a self-signed
@@ -63,11 +63,30 @@ open "app/build/Murmr Stream.app"
 - Live captions while you speak exist but are off by default (`MURMR_PREVIEW=on`): they need a second, faster Whisper
   server (about 600 MB more RAM) and only update about every 0.6 s, because Whisper encodes a fixed window per decode.
 
+## Languages of the interface
+
+The app speaks English and Vietnamese. The setting is **Automatic** (Vietnamese when the Mac's first language is Vietnamese,
+English otherwise), or a fixed choice, kept in the `uiLanguage` preference and changed live from Settings, General.
+
+- The words in the code are Vietnamese and are the keys. English is `app/Resources/en.lproj/Localizable.strings`; Vietnamese
+  needs no file. Literal text in a SwiftUI `Text("...")` is looked up by SwiftUI, and words that reach the screen as plain
+  strings go through `tr("...")` (see `L10n.swift`). A value goes in with `tr("... %@", value)`, never inside the literal.
+- The Go engine words a few notices itself (an error, "the backup answered"). The app sets its language with `MURMR_LANG` at
+  start and a `lang vi|en` line on stdin (`uitext.go`). The AI service descriptions in `providers.go` have English entries in
+  the same strings file.
+- `scripts/check-strings.sh` (run in CI) fails when a Vietnamese word that reaches the screen has no English entry, is written
+  where nothing translates it, or has a value mixed into the literal. The self-test checks the language logic.
+- `app/scripts/docs-images.sh` draws the banner, first-launch guide and screenshots in both languages into `docs/en/` and
+  `docs/vi/`, with sample data instead of yours. The disk image's background cannot switch language, so it says both.
+
+To add a language: copy `en.lproj` to `<code>.lproj`, translate the values, add the code to `UILanguage` and to
+`CFBundleLocalizations` in `Info.plist`, and have the engine word its notices in it.
+
 ## Design
 
 The look is a deliberate system, not defaults: read [DESIGN.md](../DESIGN.md). All visual values live in
 `app/Sources/MurmrStream/Theme.swift`, `app/scripts/design-lint.sh` rejects raw values and banned patterns, and
-`MurmrStream --snapshot <dictionary|apps|ai|appearance|general|pills> out.png [dark]` renders the UI offscreen to check it.
+`MurmrStream --snapshot <dictionary|apps|ai|appearance|general|pills> out.png [dark] [lang=en|vi]` renders the UI offscreen to check it.
 
 ## Commands
 

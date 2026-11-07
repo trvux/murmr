@@ -9,6 +9,13 @@ installing, not for the person reading the code. To publish a version, see "Rele
 
 ## [Unreleased]
 
+### Added
+- The app speaks English and Vietnamese. It follows your Mac's language, or you choose in Settings, General (Automatic,
+  Tiếng Việt, English); it changes at once, and the welcome window has the same switch in its corner. The engine's own
+  notices follow it too.
+- The README and the privacy notes are written once in each language, as separate files that a script keeps in step. The
+  disk image's background says both.
+
 ## [0.1.0] - 2026-11-07
 
 The first public build.
