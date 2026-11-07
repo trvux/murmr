@@ -37,26 +37,49 @@ func userMsg(raw string) string {
 	return "<transcript>\n" + raw + "\n</transcript>"
 }
 
-// --- DeepSeek (OpenAI-compatible chat completions) ---
+// --- the two protocols (Strategy): the provider table says which one a service speaks ---
 
-type deepseek struct{ key, model, system string }
+// newCleaner builds the Cleaner for one service from its spec and settings (Factory).
+func newCleaner(p ProviderSpec, cfg ProviderConfig, system string) Cleaner {
+	if p.Protocol == protoAnthropic {
+		return anthropicMessages{p, cfg, system}
+	}
+	return openAIChat{p, cfg, system}
+}
 
-func (deepseek) Name() string { return "deepseek" }
+// openAIChat speaks the OpenAI chat-completions protocol that most services copied.
+type openAIChat struct {
+	spec   ProviderSpec
+	cfg    ProviderConfig
+	system string
+}
 
-func (d deepseek) Clean(ctx context.Context, raw, extra string) (string, error) {
-	body, _ := json.Marshal(map[string]any{
-		"model":       d.model,
+func (c openAIChat) Name() string { return c.spec.ID }
+
+func (c openAIChat) Clean(ctx context.Context, raw, extra string) (string, error) {
+	if c.cfg.Model == "" {
+		return "", fmt.Errorf("%s: no model chosen (pick one in Settings)", c.spec.ID)
+	}
+	body := map[string]any{
+		"model":       c.cfg.Model,
 		"temperature": 0.1,
-		// Flash thinks by default; cleanup doesn't need it and it adds latency.
-		"thinking": map[string]string{"type": "disabled"},
 		"messages": []map[string]string{
-			{"role": "system", "content": d.system + extra},
+			{"role": "system", "content": c.system + extra},
 			{"role": "user", "content": userMsg(raw)},
 		},
-	})
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.deepseek.com/chat/completions", bytes.NewReader(body))
+	}
+	if c.spec.tweak != nil {
+		c.spec.tweak(body)
+	}
+	b, _ := json.Marshal(body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(c.cfg.BaseURL, "/")+"/chat/completions", bytes.NewReader(b))
+	if err != nil {
+		return "", err
+	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+d.key)
+	if c.cfg.Key != "" {
+		req.Header.Set("Authorization", "Bearer "+c.cfg.Key)
+	}
 
 	var out struct {
 		Choices []struct {
@@ -69,20 +92,26 @@ func (d deepseek) Clean(ctx context.Context, raw, extra string) (string, error) 
 		return "", err
 	}
 	if len(out.Choices) == 0 {
-		return "", fmt.Errorf("deepseek: empty response")
+		return "", fmt.Errorf("%s: empty response", c.spec.ID)
 	}
 	return strings.TrimSpace(out.Choices[0].Message.Content), nil
 }
 
-// --- Claude (Messages API) ---
+// anthropicMessages speaks Anthropic's own Messages API.
+type anthropicMessages struct {
+	spec   ProviderSpec
+	cfg    ProviderConfig
+	system string
+}
 
-type claude struct{ key, model, system string }
+func (c anthropicMessages) Name() string { return c.spec.ID }
 
-func (claude) Name() string { return "claude" }
-
-func (c claude) Clean(ctx context.Context, raw, extra string) (string, error) {
+func (c anthropicMessages) Clean(ctx context.Context, raw, extra string) (string, error) {
+	if c.cfg.Model == "" {
+		return "", fmt.Errorf("%s: no model chosen (pick one in Settings)", c.spec.ID)
+	}
 	body, _ := json.Marshal(map[string]any{
-		"model":       c.model,
+		"model":       c.cfg.Model,
 		"max_tokens":  1024,
 		"temperature": 0.1,
 		"system":      c.system + extra,
@@ -90,9 +119,12 @@ func (c claude) Clean(ctx context.Context, raw, extra string) (string, error) {
 			{"role": "user", "content": userMsg(raw)},
 		},
 	})
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.anthropic.com/v1/messages", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(c.cfg.BaseURL, "/")+"/messages", bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", c.key)
+	req.Header.Set("x-api-key", c.cfg.Key)
 	req.Header.Set("anthropic-version", "2023-06-01")
 
 	var out struct {
@@ -104,7 +136,7 @@ func (c claude) Clean(ctx context.Context, raw, extra string) (string, error) {
 		return "", err
 	}
 	if len(out.Content) == 0 {
-		return "", fmt.Errorf("claude: empty response")
+		return "", fmt.Errorf("%s: empty response", c.spec.ID)
 	}
 	return strings.TrimSpace(out.Content[0].Text), nil
 }
@@ -122,35 +154,52 @@ func doJSON(req *http.Request, v any) error {
 	return json.Unmarshal(b, v)
 }
 
-// pickCleaner chooses a provider from MURMR_CLEANUP (deepseek|claude|none),
-// defaulting to whichever API key is present (DeepSeek first: cheapest).
-func pickCleaner(mode, deepseekKey, deepseekModel, anthropicKey, claudeModel, system string) Cleaner {
+// buildCleaner makes the Cleaner for provider id, or nil with a reason when it cannot be used.
+func buildCleaner(id string, getenv func(string) string, system string) (Cleaner, error) {
+	p, ok := lookupProvider(id)
+	if !ok {
+		return nil, fmt.Errorf("unknown cleanup provider %q", id)
+	}
+	cfg := p.config(getenv, parseOverrides(getenv("MURMR_PROVIDER_CONFIG")))
+	if !p.ready(cfg) {
+		if p.NeedsKey && cfg.Key == "" {
+			return nil, fmt.Errorf("%s: no key (%s is not set)", id, p.KeyEnv)
+		}
+		return nil, fmt.Errorf("%s: no address set", id)
+	}
+	if err := validateBaseURL(cfg.BaseURL); err != nil {
+		return nil, fmt.Errorf("%s: %w", id, err)
+	}
+	return newCleaner(p, cfg, system), nil
+}
+
+// pickCleaner chooses the service from MURMR_CLEANUP: a provider id, "none", or empty for automatic, which takes
+// the first provider in the table that has a key (so DeepSeek, the cheapest, before the others). Services that need
+// no key (Ollama, custom) are never chosen automatically: they must be asked for, because nothing says they are running.
+func pickCleaner(mode string, getenv func(string) string, system string) Cleaner {
 	switch mode {
 	case "none":
 		return nil
-	case "deepseek":
-		if deepseekKey != "" {
-			return deepseek{deepseekKey, deepseekModel, system}
+	case "", "auto":
+		for _, p := range providers {
+			if !p.NeedsKey {
+				continue
+			}
+			if c, err := buildCleaner(p.ID, getenv, system); err == nil {
+				return c
+			}
 		}
-	case "claude":
-		if anthropicKey != "" {
-			return claude{anthropicKey, claudeModel, system}
-		}
-	default:
-		if deepseekKey != "" {
-			return deepseek{deepseekKey, deepseekModel, system}
-		}
-		if anthropicKey != "" {
-			return claude{anthropicKey, claudeModel, system}
-		}
+		return nil
 	}
-	return nil
+	c, err := buildCleaner(mode, getenv, system)
+	if err != nil {
+		log.Printf("cleanup: %v", err)
+		return nil
+	}
+	return c
 }
 
 const cleanupTimeout = 8 * time.Second
-
-// defaultClaudeModel is used unless ANTHROPIC_MODEL (set from Settings) names another.
-const defaultClaudeModel = "claude-haiku-4-5-20251001"
 
 // --- fallback between providers ---
 
@@ -193,13 +242,6 @@ func (f *fallbackCleaner) CleanNote(ctx context.Context, raw, extra string) (tex
 		perr = berr
 	}
 	return "", "Cả hai dịch vụ đều lỗi, dán nguyên văn", perr
-}
-
-func providerTitle(name string) string {
-	if name == "claude" {
-		return "Claude"
-	}
-	return "DeepSeek"
 }
 
 // noteCleaner is implemented by cleaners that can explain what they did (the fallback one).

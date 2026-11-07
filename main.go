@@ -246,17 +246,15 @@ func loadCleaner() (*Dictionary, Cleaner) {
 	hist, _ := LoadHistory(historyPath())
 	dict.Hints = LearnPairs(hist, LoadIgnored(ignoredPath()), learnMinCount)
 	log.Printf("dictionary: %d terms, learned hints: %d (from %d dictations)", len(dict.Terms), len(dict.Hints), len(hist))
-	pick := func(mode string) Cleaner {
-		return pickCleaner(mode, os.Getenv("DEEPSEEK_API_KEY"), getenv("DEEPSEEK_MODEL", "deepseek-flash"), os.Getenv("ANTHROPIC_API_KEY"), getenv("ANTHROPIC_MODEL", defaultClaudeModel), dict.CleanupSystem(cleanupSystem))
-	}
-	cleaner := pick(os.Getenv("MURMR_CLEANUP"))
-	if cleaner != nil && os.Getenv("MURMR_FALLBACK") == "on" {
-		other := "claude"
-		if cleaner.Name() == "claude" {
-			other = "deepseek"
-		}
-		if backup := pick(other); backup != nil { // nil when there is no key for the other service
+	system := dict.CleanupSystem(cleanupSystem)
+	cleaner := pickCleaner(os.Getenv("MURMR_CLEANUP"), os.Getenv, system)
+	// MURMR_FALLBACK names a second service to try when the first fails. It needs its own key, and it is the
+	// user's choice because it sends the text to a service they did not pick as the main one.
+	if backupID := os.Getenv("MURMR_FALLBACK"); cleaner != nil && backupID != "" && backupID != cleaner.Name() {
+		if backup, err := buildCleaner(backupID, os.Getenv, system); err == nil {
 			cleaner = &fallbackCleaner{primary: cleaner, backup: backup}
+		} else {
+			log.Printf("cleanup: no backup: %v", err)
 		}
 	}
 	if cleaner != nil {

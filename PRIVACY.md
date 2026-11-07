@@ -9,7 +9,7 @@
   không nhận khoá, giọng nói hay chữ của bạn.
 - **Giọng nói không rời máy.** Whisper chạy hoàn toàn trên máy bạn.
 - Chỉ khi bạn **bật AI dọn văn**, phần **chữ đã chép** (cùng từ điển và gợi ý đã học) được gửi **thẳng từ máy bạn**
-  tới dịch vụ bạn chọn (DeepSeek hoặc Anthropic), kèm khoá của bạn. Dịch vụ đó có chính sách dữ liệu riêng.
+  tới dịch vụ bạn chọn (DeepSeek, Anthropic, OpenAI, Gemini, Kimi, OpenRouter hoặc địa chỉ bạn tự nhập), kèm khoá của bạn. Dịch vụ đó có chính sách dữ liệu riêng.
 - **Tắt AI thì không có gì rời máy.**
 - Không có telemetry, analytics hay báo cáo lỗi tự động.
 
@@ -36,6 +36,9 @@ When AI cleanup is on, each dictation sends one request **directly from your com
 
 - **DeepSeek**: `https://api.deepseek.com/chat/completions`
 - **Anthropic**: `https://api.anthropic.com/v1/messages`
+- **OpenAI, Gemini, Kimi, OpenRouter**: the `/chat/completions` address of that service (see the README table)
+- **Custom**: the address you type. It must be https, except for `localhost`.
+- **Ollama** (or any server on this machine): `http://localhost…`. The text stays on your computer.
 
 The request contains:
 
@@ -51,16 +54,16 @@ services), the same text is then sent to the **other** service when the chosen o
 when that happened.
 
 Separately, when you save a key or open Settings, the app asks the same service for its **list of models**
-(`https://api.deepseek.com/models`, `https://api.anthropic.com/v1/models`). That request carries only your key,
+(for example `https://api.deepseek.com/models`, `https://api.anthropic.com/v1/models`). That request carries only your key,
 no dictated text.
 
-DeepSeek and Anthropic have their own terms and data policies. Read them before enabling a service, because
+Each service has its own terms and data policies (an aggregator such as OpenRouter adds one more party between you and the model). Read them before enabling a service, because
 dictated text can contain private things. If you choose "Không dùng AI", no text is sent anywhere.
 
 ## What the author receives
 
-Nothing. The code makes no other network calls: the only addresses it contacts are the two services above (when
-you enable them) and `127.0.0.1` (the local whisper server). It has no telemetry, analytics or crash reporting.
+Nothing. The code makes no other network calls: the only addresses it contacts are the service you chose (and the backup, if you
+enabled one), the address of a custom service you typed, and `127.0.0.1` (the local whisper server). It has no telemetry, analytics or crash reporting.
 Links in the app (for example "Lấy khoá") open in your browser only when you click them.
 
 ## Removing your data

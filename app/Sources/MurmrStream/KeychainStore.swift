@@ -22,6 +22,16 @@ enum KeychainStore {
         return String(data: data, encoding: .utf8)
     }
 
+    /// Every account stored under the service: the engine is handed all of them as environment variables, so the
+    /// app never needs to know which providers exist.
+    static func allAccounts(service: String = defaultService) -> [String] {
+        let query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service,
+                                      kSecReturnAttributes: true, kSecMatchLimit: kSecMatchLimitAll]
+        var items: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &items) == errSecSuccess, let list = items as? [[String: Any]] else { return [] }
+        return list.compactMap { $0[kSecAttrAccount as String] as? String }
+    }
+
     @discardableResult
     static func write(_ value: String, account: String, service: String = defaultService) -> Bool {
         let data = Data(value.utf8)

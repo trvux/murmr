@@ -118,7 +118,8 @@ and `MurmrStream --snapshot <dictionary|apps|ai|appearance|general|pills> out.pn
 | `./murmr report` | recurring mishearings found in your history |
 | `./murmr forget "<heard text>"` | stop using a learned hint |
 | `./murmr hints` | the learned "heard => meant" pairs as JSON (what the Settings window shows) |
-| `./murmr models deepseek\|claude` | the models your key can use, as JSON (what the model picker shows) |
+| `./murmr providers` | the services the engine knows, as JSON (what the AI page draws) |
+| `./murmr models <id>` | the models a service offers for your key, as JSON (what the model menu shows) |
 | `./murmr styles` | the apps and their pronoun style as JSON (what the Ứng dụng page shows) |
 | `./murmr clean [--casual] "<text>"` | run only the cleanup step, to try prompt changes |
 | `./murmr drill` | read practice sentences, get phoneme-level feedback and a replay in your voice |
@@ -131,15 +132,27 @@ Murmr Stream calls a hosted LLM for **one step only: cleaning up the transcript*
 fixing punctuation and mis-heard terms, handling pronouns). Speech recognition, VAD, phoneme scoring and
 the own-voice replay all run locally and use no API.
 
-| Provider | Key variable | Model | Endpoint |
-|---|---|---|---|
-| DeepSeek (default when its key is set) | `DEEPSEEK_API_KEY` | `deepseek-flash` (override with `DEEPSEEK_MODEL`) | `https://api.deepseek.com/chat/completions` |
-| Anthropic | `ANTHROPIC_API_KEY` | `claude-haiku-4-5-20251001` (set in `cleanup.go`) | `https://api.anthropic.com/v1/messages` |
+Services are rows in one table, `providers.go` (`./murmr providers` prints it, and the Settings window draws
+from it). There are only two wire protocols: **OpenAI-compatible** chat completions (most services) and
+**Anthropic Messages** (Claude). A service is its address, key variable and default model, plus an optional
+small quirk (DeepSeek turns thinking off; OpenAI gets no `temperature`).
 
-Get keys from [platform.deepseek.com](https://platform.deepseek.com) or
-[console.anthropic.com](https://console.anthropic.com). You are billed by the provider per request;
-check their pricing. Pick one with `MURMR_CLEANUP=deepseek|claude`, or `none` to use no API at all
-(you then get raw Whisper output).
+| Service | Key variable | Address | Checked with a real key |
+|---|---|---|---|
+| DeepSeek (default when its key is set) | `DEEPSEEK_API_KEY` | `https://api.deepseek.com` | yes (`deepseek-flash`) |
+| Claude (Anthropic) | `ANTHROPIC_API_KEY` | `https://api.anthropic.com/v1` | yes (`claude-haiku-4-5-20251001`) |
+| OpenAI | `OPENAI_API_KEY` | `https://api.openai.com/v1` | **no** |
+| Gemini (Google, OpenAI-compatible layer) | `GEMINI_API_KEY` | `https://generativelanguage.googleapis.com/v1beta/openai` | **no** |
+| Kimi (Moonshot) | `MOONSHOT_API_KEY` | `https://api.moonshot.ai/v1` | **no** |
+| OpenRouter (many labs behind one key) | `OPENROUTER_API_KEY` | `https://openrouter.ai/api/v1` | **no** |
+| Ollama (runs on your machine, no key, text never leaves it) | none | `http://localhost:11434/v1` (`OLLAMA_BASE_URL`) | **no** |
+| Custom (any OpenAI-compatible service, e.g. LM Studio) | `CUSTOM_API_KEY` (optional) | `CUSTOM_BASE_URL` | **no** |
+
+Services not yet checked have no default model: you pick one from the list the service itself returns
+(`./murmr models <id>`). An address must be https, except for this machine (`localhost`), so a key is never
+sent over plain http to another host. You are billed by the provider per request; check their pricing. Pick one
+with `MURMR_CLEANUP=<id>`, or `none` to use no API at all (you then get raw Whisper output). Left unset, the
+first service in the table that has a key is used (services that need no key are never picked automatically).
 
 **Where to put keys.** In the app, use Settings, "AI và khoá API": the key goes to the macOS Keychain
 (not synced to iCloud) and the app hands it to its own engine process. From the command line, put it in
@@ -158,7 +171,7 @@ at the provider right away; deleting the commit is not enough.
 **What is not sent:** audio, the focused app's name, window titles, your history file, or any
 other provider's key.
 
-If a request fails or takes longer than 8 seconds, the raw Whisper text is pasted instead (or, with `MURMR_FALLBACK=on` and both keys, the other service is tried first), so
+If a request fails or takes longer than 8 seconds, the raw Whisper text is pasted instead (or, with `MURMR_FALLBACK=<id>`, that second service is tried first), so
 dictation never blocks on the network. If you point a fork at another provider, read that provider's
 data-retention terms first, because dictation text can contain private things.
 
@@ -169,10 +182,9 @@ Set in `~/.config/murmr/env` (all optional except a cleanup key if you want clea
 | Variable | Default | Meaning |
 |---|---|---|
 | `DEEPSEEK_API_KEY`, `ANTHROPIC_API_KEY` | none | cleanup provider (DeepSeek preferred if both are set) |
-| `DEEPSEEK_MODEL` | `deepseek-flash` | DeepSeek model name |
-| `ANTHROPIC_MODEL` | `claude-haiku-4-5-20251001` | Claude model name |
-| `MURMR_CLEANUP` | auto | `deepseek`, `claude` or `none` |
-| `MURMR_FALLBACK` | off | `on`: if the chosen service fails or takes over 6 s, try the other one (needs both keys; sends the text there) |
+| `<SERVICE>_MODEL` | per service | model name, e.g. `DEEPSEEK_MODEL`, `ANTHROPIC_MODEL`, `OPENAI_MODEL` (the Settings choice wins) |
+| `MURMR_CLEANUP` | auto | a service id (`deepseek`, `claude`, `openai`...) or `none` |
+| `MURMR_FALLBACK` | off | a service id: if the chosen service fails or takes over 6 s, try this one (needs its own key; sends the text there) |
 | `MURMR_MODEL` | `models/ggml-large-v3-turbo-q5_0.bin` | Whisper model path |
 | `MURMR_VAD` / `MURMR_VAD_MODEL` | on / `models/ggml-silero-v5.1.2.bin` | `MURMR_VAD=off` disables VAD |
 | `MURMR_HISTORY` | on | `off` stops writing `history.jsonl` |

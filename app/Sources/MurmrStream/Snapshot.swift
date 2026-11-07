@@ -145,18 +145,16 @@ enum Snapshot {
         print(allOK ? "ALL OK" : "FAILED")
     }
 
-    /// Development check of the Apps rules file, the Keychain wrapper and key status, on temporary data only:
-    /// a temp rules file and a throw-away Keychain service. It prints whether keys exist, never the keys.
     /// Development check: fetch each provider's model list with the stored key and print ids (never the key).
     static func modelsCheck() {
         let done = DispatchSemaphore(value: 0)
         Task { @MainActor in
             let settings = AISettings()
-            for provider in AIProvider.allCases {
-                await settings.loadModels(provider)
-                let list = settings.models[provider] ?? []
-                print("\(provider.rawValue): \(list.count) models, error: \(settings.modelErrors[provider] ?? "none")")
-                for m in list { print("  \(m.deprecated ? "old" : "new") \(m.id)  (\(m.name))") }
+            for p in settings.providers where settings.isReady(p) && p.needsKey {
+                await settings.loadModels(p)
+                let list = settings.models[p.id] ?? []
+                print("\(p.id): \(list.count) models, error: \(settings.modelErrors[p.id] ?? "none")")
+                for m in list.prefix(8) { print("  \(m.deprecated ? "old" : "new") \(m.id)  (\(m.name))") }
             }
             done.signal()
         }
@@ -194,6 +192,8 @@ enum Snapshot {
         print(allOK ? "ALL OK" : "SOME CHECKS FAILED")
     }
 
+    /// Development check of the Apps rules file, the Keychain wrapper and the provider catalog, on temporary data
+    /// only: a temp rules file and a throw-away Keychain service. It prints whether keys exist, never the keys.
     static func settingsSelfTest() {
         var allOK = true
         func check(_ name: String, _ condition: Bool) {
@@ -240,8 +240,13 @@ enum Snapshot {
         check("deleting a missing item is not an error", KeychainStore.delete("probe", service: service))
 
         // --- key status (existence only)
-        for provider in AIProvider.allCases {
-            print("info \(provider.keyName): \(AISettings.status(for: provider))".replacingOccurrences(of: "last4: ", with: "last4: …"))
+        let catalog = AISettings.loadCatalog()
+        check("the engine lists its providers", catalog.count >= 2 && catalog.contains { $0.id == "deepseek" } && catalog.contains { $0.id == "claude" })
+        check("a provider with a fixed address cannot be edited, ollama can",
+              catalog.first { $0.id == "deepseek" }?.editableURL == false && catalog.first { $0.id == "ollama" }?.editableURL == true)
+        check("ollama needs no key and is local", catalog.first { $0.id == "ollama" }.map { !$0.needsKey && !$0.takesKey && $0.local } ?? false)
+        for p in catalog where p.takesKey {
+            print("info \(p.keyEnv): \(AISettings.status(for: p))".replacingOccurrences(of: "last4: ", with: "last4: …"))
         }
         print(allOK ? "ALL OK" : "FAILED")
     }

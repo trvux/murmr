@@ -31,8 +31,10 @@ func runCommand(name string, args []string) error {
 		return cmdClean(args)
 	case "models":
 		return cmdModels(args)
+	case "providers":
+		return cmdProviders()
 	default:
-		return fmt.Errorf("unknown command %q (try: report, forget, hints, styles, drill, progress, score, clean, models)", name)
+		return fmt.Errorf("unknown command %q (try: report, forget, hints, styles, drill, progress, score, clean, models, providers)", name)
 	}
 }
 
@@ -112,7 +114,7 @@ func cmdClean(args []string) error {
 	}
 	dict, cleaner := loadCleaner()
 	if cleaner == nil {
-		return fmt.Errorf("no cleanup provider configured (set DEEPSEEK_API_KEY)")
+		return fmt.Errorf("no cleanup provider configured (add a key in Settings, or set MURMR_CLEANUP and its key; see: murmr providers)")
 	}
 	style := styleNeutral
 	if args[0] == "--casual" {

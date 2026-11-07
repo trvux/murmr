@@ -377,3 +377,31 @@ struct ExternalLink: View {
         }
     }
 }
+
+/// A closed field that opens a menu: the one control for "pick one of many" (a service, a model, a backup).
+struct MenuField<Content: View>: View {
+    let label: String
+    var detail: String?  // quiet text before the chevron, such as "Đang tải danh sách…"
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        Menu {
+            content()
+        } label: {
+            HStack {
+                Text(label).font(Theme.Typeface.body).foregroundStyle(Theme.ink)
+                Spacer()
+                if let detail { Text(detail).font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted) }
+                Image(systemName: "chevron.up.chevron.down").font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted)
+            }
+            .padding(.horizontal, Theme.Space.m)
+            .padding(.vertical, Theme.Space.s)
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).fill(Theme.paperRaised))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).strokeBorder(Theme.rule))
+            .contentShape(Rectangle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+    }
+}
