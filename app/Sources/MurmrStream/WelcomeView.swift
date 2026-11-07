@@ -42,7 +42,13 @@ struct WelcomeView: View {
         .frame(width: 560, height: 660)
         .background(Theme.paper)
         .animation(Theme.Motion.calm, value: step)
-        .onAppear { permissions.startPolling() }
+        .onAppear {
+            permissions.startPolling()
+            if step == .permissions { permissions.askInTurn() }
+        }
+        .onChange(of: step) { _, now in
+            if now == .permissions { permissions.askInTurn() }
+        }
         .onDisappear { permissions.stopPolling() }
         .onChange(of: permissions.allGranted) { _, granted in
             if granted { state.requestRestart() }  // the key listener cannot start until the permissions exist

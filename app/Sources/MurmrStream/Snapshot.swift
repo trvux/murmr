@@ -403,6 +403,13 @@ enum Snapshot {
               [HoldKey.standard, HoldKey(spec: "mod:55", label: "x"), HoldKey(spec: "mod:63", label: "x"), HoldKey(spec: "combo:49:c0000", label: "x")]
                 .compactMap(\.note).allSatisfy { !$0.lowercased().contains("raycast") })
         check("choosing ignores the first moments, so the click that began it cannot be taken as the key", HoldKeyCapture.settle >= 0.2)
+        let watched = Permissions()
+        watched.startPolling()
+        watched.startPolling()  // a second window opens before the first one has closed
+        watched.stopPolling()
+        check("the live status keeps running while any window still shows it", watched.isWatching)
+        watched.stopPolling()
+        check("and stops when the last one closes", !watched.isWatching)
         check("a mounted installer or a temporary copy is not a place to keep permissions",
               AppLocation.isTemporary("/Volumes/Murmr Stream 0.1.0/Murmr Stream.app")
               && AppLocation.isTemporary("/private/var/folders/3f/T/AppTranslocation/84D7/d/Murmr Stream.app"))

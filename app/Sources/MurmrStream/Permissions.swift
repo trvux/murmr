@@ -66,6 +66,10 @@ final class Permissions: ObservableObject {
     /// is already on and the app still says "not granted" (an old entry, from another build of the app).
     @Published private(set) var needHelp: Set<PermissionKind> = []
     private var timer: Timer?
+    private var watchers = 0  // windows that need the live status; the timer runs while there is one
+    private var napBlock: NSObjectProtocol?
+    private var observers: [NSObjectProtocol] = []
+    private var askingInTurn = false
     private let preview: [PermissionKind: PermissionState]?
 
     /// `preview` fixes the states, for the offscreen snapshots; it never touches the real permissions.
@@ -100,12 +104,13 @@ final class Permissions: ObservableObject {
     static func dialogWillShow(_ state: PermissionState) -> Bool { state == .notAsked }
 
     /// Shows macOS's own dialog for this permission. When macOS has already decided, a dialog would never come (the
-    /// button would look dead), so the person goes straight to the page in System Settings.
-    func request(_ kind: PermissionKind) {
+    /// button would look dead), so the person goes straight to the page in System Settings. `fallbackToSettings`: if the
+    /// dialog does not appear either (this app is still in front a moment later), open that page too.
+    func request(_ kind: PermissionKind, fallbackToSettings: Bool = true) {
         guard preview == nil else { return }
         refresh()
         if kind != .accessibility && !Self.dialogWillShow(state(kind)) {
-            openSettings(kind)
+            if fallbackToSettings { openSettings(kind) }
             return
         }
         switch kind {
@@ -117,6 +122,35 @@ final class Permissions: ObservableObject {
             _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
         }
         refresh()
+        guard fallbackToSettings, kind != .accessibility else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self else { return }
+            self.refresh()
+            // a dialog from macOS takes the focus; still in front and still not granted means none came
+            if self.state(kind) != .granted && NSApp.isActive { self.openSettings(kind) }
+        }
+    }
+
+    /// The microphone dialog comes by itself, so do the same for the others: ask for each missing permission in turn,
+    /// waiting for the answer before the next dialog. Only what macOS has not decided yet (a decided one would be silent).
+    func askInTurn() {
+        guard preview == nil, !askingInTurn else { return }
+        askingInTurn = true
+        Task { @MainActor in
+            defer { askingInTurn = false }
+            for kind in PermissionKind.allCases {
+                refresh()
+                guard state(kind) == .notAsked else { continue }
+                request(kind, fallbackToSettings: false)
+                var wasAway = false
+                for _ in 0..<240 {  // up to two minutes for the person to answer
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    refresh()
+                    if state(kind) != .notAsked { break }
+                    if !NSApp.isActive { wasAway = true } else if wasAway { break }  // the dialog was dismissed
+                }
+            }
+        }
     }
 
     func openSettings(_ kind: PermissionKind) {
@@ -125,16 +159,45 @@ final class Permissions: ObservableObject {
         NSWorkspace.shared.open(url)
     }
 
-    /// The person grants these in another window, so look again every second while the welcome window is open.
+    /// The person grants these in another window, so keep looking while a window that shows them is open. Looking happens
+    /// on a timer, when the app comes to the front, and when macOS says the accessibility list changed; and App Nap is
+    /// held off, because it stretches a one-second timer of an app that is in the background to many seconds.
+    var isWatching: Bool { watchers > 0 }
+
     func startPolling() {
-        guard preview == nil, timer == nil else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+        guard preview == nil else { return }
+        watchers += 1
+        guard timer == nil else { return }
+        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
+        napBlock = ProcessInfo.processInfo.beginActivity(options: .userInitiated, reason: "Showing which permissions are granted")
+        let again: @Sendable (Notification) -> Void = { [weak self] _ in
+            Task { @MainActor in
+                self?.refresh()
+                try? await Task.sleep(nanoseconds: 600_000_000)  // the list is written a moment after the notice
+                self?.refresh()
+            }
+        }
+        observers = [
+            NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main, using: again),
+            DistributedNotificationCenter.default().addObserver(forName: NSNotification.Name("com.apple.accessibility.api"), object: nil, queue: .main, using: again),
+        ]
     }
 
     func stopPolling() {
+        watchers = max(0, watchers - 1)
+        guard watchers == 0 else { return }
         timer?.invalidate()
         timer = nil
+        if let napBlock { ProcessInfo.processInfo.endActivity(napBlock) }
+        napBlock = nil
+        for o in observers {
+            NotificationCenter.default.removeObserver(o)
+            DistributedNotificationCenter.default().removeObserver(o)
+        }
+        observers = []
     }
 }
