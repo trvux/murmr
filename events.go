@@ -11,6 +11,7 @@ import (
 // eventSink writes one JSON object per line. The macOS app shell reads these to
 // draw the notch UI. Event kinds:
 //
+//	loading  stage                 startup step: "dictionary", "whisper" (the long one), "audio", "keys"
 //	ready                          engine is up
 //	recording                      key down, mic is capturing
 //	app      bundle, style         where the text will be pasted (arrives a moment later)

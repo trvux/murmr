@@ -36,6 +36,10 @@ func historyPath() string { return filepath.Join(configDir(), "history.jsonl") }
 func ignoredPath() string { return filepath.Join(configDir(), "ignored.txt") }
 
 func daemon() {
+	if os.Getenv("MURMR_EVENTS") == "1" {
+		events = newEventSink(os.Stdout) // created first, so the shell can show startup progress
+	}
+	events.emit("loading", "stage", "dictionary")
 	model := getenv("MURMR_MODEL", "models/ggml-large-v3-turbo-q5_0.bin")
 	if !fileExists(model) {
 		log.Fatalf("model not found: %s (set MURMR_MODEL)", model)
@@ -45,10 +49,8 @@ func daemon() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	if os.Getenv("MURMR_EVENTS") == "1" {
-		// Started by the macOS app shell: report state as JSON lines on stdout, and
-		// stop when the shell goes away (its end of our stdin closes).
-		events = newEventSink(os.Stdout)
+	if events != nil {
+		// Started by the macOS app shell: stop when the shell goes away (its end of our stdin closes).
 		go func() {
 			_, _ = io.Copy(io.Discard, os.Stdin)
 			cancel()
@@ -61,6 +63,7 @@ func daemon() {
 		log.Printf("vad: OFF (model missing or MURMR_VAD=off): Whisper may invent text from noise")
 	}
 	log.Printf("starting whisper-server (first launch compiles Metal shaders, ~10s)...")
+	events.emit("loading", "stage", "whisper")
 	wh, err := StartWhisper(ctx, model, getenv("MURMR_PORT", "8178"), dict.WhisperPrompt(whisperPrompt), vadArgs()...)
 	if err != nil {
 		log.Fatal(err)
@@ -85,12 +88,14 @@ func daemon() {
 		}()
 	}
 
+	events.emit("loading", "stage", "audio")
 	rec, err := NewRecorder()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer rec.Close()
 
+	events.emit("loading", "stage", "keys")
 	keys, err := StartHoldKey()
 	if err != nil {
 		log.Fatal(err)

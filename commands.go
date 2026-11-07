@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
@@ -15,6 +16,8 @@ func runCommand(name string, args []string) error {
 		return cmdReport()
 	case "forget":
 		return cmdForget(args)
+	case "hints":
+		return cmdHints()
 	case "drill":
 		return cmdDrill(args)
 	case "progress":
@@ -24,7 +27,7 @@ func runCommand(name string, args []string) error {
 	case "clean":
 		return cmdClean(args)
 	default:
-		return fmt.Errorf("unknown command %q (try: report, forget, drill, progress, score, clean)", name)
+		return fmt.Errorf("unknown command %q (try: report, forget, hints, drill, progress, score, clean)", name)
 	}
 }
 
@@ -117,5 +120,35 @@ func cmdClean(args []string) error {
 		return err
 	}
 	fmt.Println(dict.Apply(out))
+	return nil
+}
+
+// hintJSON is one learned "heard => meant" pair, as the app's Settings window shows it.
+type hintJSON struct {
+	From   string `json:"from"`
+	To     string `json:"to"`
+	Count  int    `json:"count"`
+	Active bool   `json:"active"` // seen often enough to be sent to the LLM as a hint
+}
+
+// hintsJSON lists pairs seen at least twice (the report's view), most frequent first.
+func hintsJSON(hist []Entry, ignored map[string]bool) ([]byte, error) {
+	out := []hintJSON{} // never nil, so an empty list encodes as [] and not null
+	for _, p := range LearnPairs(hist, ignored, 2) {
+		out = append(out, hintJSON{From: p.From, To: p.To, Count: p.Count, Active: p.Count >= learnMinCount})
+	}
+	return json.Marshal(out)
+}
+
+func cmdHints() error {
+	hist, err := LoadHistory(historyPath())
+	if err != nil {
+		return err
+	}
+	b, err := hintsJSON(hist, LoadIgnored(ignoredPath()))
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(b))
 	return nil
 }
