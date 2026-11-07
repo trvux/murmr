@@ -11,6 +11,10 @@ enum Snapshot {
             runPills(path: arguments.count > 1 ? arguments[1] : "pills.png", dark: arguments.contains("dark"))
             return
         }
+        if let first = arguments.first, first.hasPrefix("welcome") {
+            runWelcome(name: first, path: arguments.count > 1 ? arguments[1] : "welcome.png", dark: arguments.contains("dark"))
+            return
+        }
         let tab = SettingsTab(rawValue: arguments.first ?? "") ?? .appearance
         let path = arguments.count > 1 ? arguments[1] : "snapshot.png"
         let dark = arguments.contains("dark")
@@ -49,6 +53,35 @@ enum Snapshot {
         }
         try? png.write(to: URL(fileURLWithPath: path))
         print("wrote \(path) (\(Int(size.width * 2))x\(Int(size.height * 2)) px)")
+    }
+
+    /// The welcome window, one step per name (`welcome1` ... `welcome4`), with made-up permission and loading states.
+    private static func runWelcome(name: String, path: String, dark: Bool) {
+        let index = max(1, min(4, Int(name.dropFirst("welcome".count)) ?? 1)) - 1
+        let step = WelcomeView.Step(rawValue: index) ?? .hello
+        let state = AppState()
+        if step == .prepare {
+            state.loadStage = "models"
+            state.loadProgress = 0.38
+            state.loadDetail = "Đang tải model giọng nói · 218 / 574 MB"
+        }
+        if step == .ready { state.engineReady = true }
+        let permissions = Permissions(preview: step == .permissions
+            ? [.microphone: .granted, .inputMonitoring: .notAsked, .accessibility: .denied]
+            : Dictionary(uniqueKeysWithValues: PermissionKind.allCases.map { ($0, PermissionState.granted) }))
+        let size = CGSize(width: 560, height: 660)
+        let host = NSHostingView(rootView: WelcomeView(state: state, permissions: permissions, initialStep: step).frame(width: size.width, height: size.height))
+        host.frame = CGRect(origin: .zero, size: size)
+        let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        window.contentView = host
+        host.layoutSubtreeIfNeeded()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+        host.layoutSubtreeIfNeeded()
+        guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds), let _ = Optional(host.cacheDisplay(in: host.bounds, to: rep)),
+              let png = rep.representation(using: .png, properties: [:]) else { print("snapshot failed"); return }
+        try? png.write(to: URL(fileURLWithPath: path))
+        print("wrote \(path)")
     }
 
     /// The real notch pill in each state, stacked on a paper background (it is black, so it needs one).

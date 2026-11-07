@@ -549,3 +549,123 @@ struct DmgBackgroundArt: View {
         .frame(width: Self.size.width, height: Self.size.height)
     }
 }
+
+// MARK: - Mascot
+
+enum MascotMood { case idle, listening, speaking, done, oops, sleeping }
+
+extension Theme {
+    /// The mascot keeps its own colours in both appearances: dark body, pale belly. In the dark appearance the body is
+    /// lifted a little so its outline does not vanish into the window.
+    static let mascotBody = dynamic(light: 0x1D1A15, dark: 0x3A342C)
+    static let mascotPale = dynamic(light: 0xF6F2E9, dark: 0xF6F2E9)
+    static let mascotPupil = dynamic(light: 0x1D1A15, dark: 0x1D1A15)
+}
+
+/// The mascot, a plump bird from the flock (chosen: round body, pale belly, small wings, one tuft, clay beak and feet).
+/// Its face is two eyes and a beak; the mood changes the eyes, the beak, and a few marks around it.
+struct Mascot: View {
+    var mood: MascotMood = .idle
+    var size: CGFloat = 120
+
+    var body: some View {
+        let u = size / 100
+        ZStack(alignment: .topLeading) {
+            ForEach([39.0, 61.0], id: \.self) { x in
+                Capsule().fill(Theme.signal).frame(width: 10 * u, height: 5 * u).offset(x: (x - 5) * u, y: 91 * u)
+            }
+            Ellipse().fill(Theme.mascotBody).frame(width: 15 * u, height: 28 * u)
+                .rotationEffect(.degrees(mood == .done ? 40 : 16)).offset(x: 7 * u, y: (mood == .done ? 44 : 50) * u)
+            Ellipse().fill(Theme.mascotBody).frame(width: 15 * u, height: 28 * u)
+                .rotationEffect(.degrees(mood == .done ? -40 : -16)).offset(x: 78 * u, y: (mood == .done ? 44 : 50) * u)
+            Path { p in
+                p.move(to: CGPoint(x: 50 * u, y: 21 * u))
+                p.addQuadCurve(to: CGPoint(x: 55 * u, y: 8 * u), control: CGPoint(x: 49 * u, y: 13 * u))
+            }.stroke(Theme.mascotBody, style: StrokeStyle(lineWidth: 5 * u, lineCap: .round))
+            Ellipse().fill(Theme.mascotBody).frame(width: 82 * u, height: 76 * u).offset(x: 9 * u, y: 18 * u)
+            Ellipse().fill(Theme.mascotPale).frame(width: 48 * u, height: 40 * u).offset(x: 26 * u, y: 52 * u)
+            eyes(u)
+            beak(u)
+            marks(u)
+        }
+        .frame(width: size, height: size, alignment: .topLeading)
+        .rotationEffect(.degrees(mood == .listening ? 5 : 0), anchor: .bottom)
+        .animation(Theme.Motion.calm, value: mood)
+        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder private func eyes(_ u: CGFloat) -> some View {
+        ForEach([35.0, 65.0], id: \.self) { cx in
+            switch mood {
+            case .done:  // happy: an arch
+                Path { p in
+                    p.move(to: CGPoint(x: (cx - 7) * u, y: 51 * u))
+                    p.addQuadCurve(to: CGPoint(x: (cx + 7) * u, y: 51 * u), control: CGPoint(x: cx * u, y: 38 * u))
+                }.stroke(Theme.mascotPale, style: StrokeStyle(lineWidth: 3.4 * u, lineCap: .round))
+            case .sleeping:  // closed: a smile-shaped line
+                Path { p in
+                    p.move(to: CGPoint(x: (cx - 7) * u, y: 46 * u))
+                    p.addQuadCurve(to: CGPoint(x: (cx + 7) * u, y: 46 * u), control: CGPoint(x: cx * u, y: 55 * u))
+                }.stroke(Theme.mascotPale, style: StrokeStyle(lineWidth: 3.4 * u, lineCap: .round))
+            default:
+                let big: CGFloat = mood == .listening ? 21 : 19
+                let pupil: CGFloat = mood == .oops ? 5 : (mood == .listening ? 12 : 10)
+                let look: CGPoint = mood == .listening ? CGPoint(x: -1.5, y: -2) : (mood == .oops ? .zero : CGPoint(x: 1.5, y: 1))
+                Circle().fill(Theme.mascotPale).frame(width: big * u, height: big * u).offset(x: (cx - big / 2) * u, y: (47 - big / 2) * u)
+                Circle().fill(Theme.mascotPupil).frame(width: pupil * u, height: pupil * u)
+                    .offset(x: (cx - pupil / 2 + look.x) * u, y: (47 - pupil / 2 + look.y) * u)
+            }
+        }
+    }
+
+    @ViewBuilder private func beak(_ u: CGFloat) -> some View {
+        if mood == .speaking {
+            Poly(points: [(43, 54), (57, 54), (50, 60)]).fill(Theme.signal).frame(width: size, height: size)
+            Poly(points: [(44, 66), (56, 66), (50, 61)]).fill(Theme.signal).frame(width: size, height: size)
+        } else {
+            Poly(points: [(43, 53), (57, 53), (50, 63)]).fill(Theme.signal).frame(width: size, height: size)
+        }
+    }
+
+    @ViewBuilder private func marks(_ u: CGFloat) -> some View {
+        switch mood {
+        case .listening:  // sound arriving from the left
+            ForEach(0..<2) { i in
+                Path { p in
+                    p.addArc(center: CGPoint(x: 30 * u, y: 42 * u), radius: CGFloat(30 + i * 9) * u, startAngle: .degrees(158), endAngle: .degrees(202), clockwise: false)
+                }.stroke(Theme.signal, style: StrokeStyle(lineWidth: 3 * u, lineCap: .round)).opacity(1 - Double(i) * 0.45)
+            }
+        case .speaking:  // sound leaving to the right
+            ForEach(0..<2) { i in
+                Path { p in
+                    p.addArc(center: CGPoint(x: 60 * u, y: 60 * u), radius: CGFloat(14 + i * 9) * u, startAngle: .degrees(-38), endAngle: .degrees(38), clockwise: false)
+                }.stroke(Theme.signal, style: StrokeStyle(lineWidth: 3 * u, lineCap: .round)).opacity(1 - Double(i) * 0.45)
+            }
+        case .oops:  // a drop of worry
+            Path { p in
+                p.move(to: CGPoint(x: 84 * u, y: 20 * u))
+                p.addQuadCurve(to: CGPoint(x: 90 * u, y: 32 * u), control: CGPoint(x: 90 * u, y: 24 * u))
+                p.addQuadCurve(to: CGPoint(x: 78 * u, y: 32 * u), control: CGPoint(x: 84 * u, y: 38 * u))
+                p.addQuadCurve(to: CGPoint(x: 84 * u, y: 20 * u), control: CGPoint(x: 78 * u, y: 24 * u))
+            }.fill(Theme.signal)
+        case .sleeping:  // z z
+            Text("z").font(.system(size: 16 * u, weight: .semibold, design: .serif)).foregroundStyle(Theme.inkMuted).offset(x: 80 * u, y: 8 * u)
+            Text("z").font(.system(size: 11 * u, weight: .semibold, design: .serif)).foregroundStyle(Theme.inkFaint).offset(x: 92 * u, y: -2 * u)
+        default:
+            EmptyView()
+        }
+    }
+}
+
+/// A filled polygon from points in a 100 x 100 box (used for the beak).
+struct Poly: Shape {
+    var points: [(CGFloat, CGFloat)]
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        let s = r.width / 100
+        p.move(to: CGPoint(x: points[0].0 * s, y: points[0].1 * s))
+        for q in points.dropFirst() { p.addLine(to: CGPoint(x: q.0 * s, y: q.1 * s)) }
+        p.closeSubpath()
+        return p
+    }
+}

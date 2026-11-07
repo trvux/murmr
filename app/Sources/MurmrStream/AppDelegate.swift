@@ -10,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private var statusLine = NSMenuItem()
     private var settingsWindow: NSWindow?
+    private var welcomeWindow: NSWindow?
+    private let permissions = Permissions()
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -28,6 +30,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .store(in: &cancellables)
 
         engine.start()
+
+        // First launch: say hello and walk through the permissions. Any time after, from the menu.
+        if !UserDefaults.standard.bool(forKey: "welcomeDone") { openWelcome() }
 
         // Development hook: open Settings right away (used to smoke-test the window without clicking).
         if ProcessInfo.processInfo.environment["MURMR_OPEN_SETTINGS"] == "1" { openSettings() }
@@ -57,6 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(item("Xem thử hiệu ứng notch", #selector(runDemo)))
         menu.addItem(item("Cài đặt…", #selector(openSettings), key: ","))
         menu.addItem(item("Khởi động lại engine", #selector(restartEngine)))
+        menu.addItem(item("Hướng dẫn ban đầu…", #selector(openWelcome)))
         menu.addItem(.separator())
         menu.addItem(item("Thoát", #selector(quit), key: "q"))
 
@@ -135,6 +141,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApp.activate(ignoringOtherApps: true)  // an accessory app has no Dock icon to click
         settingsWindow?.center()
         settingsWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func openWelcome() {
+        welcomeWindow?.close()  // always start from the first step
+        let view = WelcomeView(
+            state: state, permissions: permissions,
+            openAISettings: { [weak self] in self?.openSettings() },
+            finish: { [weak self] in
+                UserDefaults.standard.set(true, forKey: "welcomeDone")
+                self?.welcomeWindow?.close()
+            }
+        )
+        let window = NSWindow(contentViewController: NSHostingController(rootView: view))
+        window.title = "Murmr Stream"
+        window.styleMask = [.titled, .closable, .fullSizeContentView]
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.isMovableByWindowBackground = true
+        window.isReleasedWhenClosed = false
+        welcomeWindow = window
+        NSApp.activate(ignoringOtherApps: true)
+        window.center()
+        window.makeKeyAndOrderFront(nil)
     }
 
     @objc private func quit() { NSApp.terminate(nil) }

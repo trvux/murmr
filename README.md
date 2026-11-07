@@ -100,6 +100,8 @@ open "app/build/Murmr Stream.app"
   a terminal with `./run.sh`; it links libraries by absolute path and is built for the newest macOS only, so it
   cannot be copied into an app. On start the engine also stops an orphaned `whisper-server` left on its port by a
   crashed run.
+- **Welcome window.** On first launch (and from the menu, "Hướng dẫn ban đầu…") a short guide walks through the three
+  permissions with live status, then the model download. The mascot is drawn in `Theme.swift` (`Mascot`, six moods).
 - **Permissions.** The app asks for Microphone, Input Monitoring (the Option key) and Accessibility
   (pasting). With ad-hoc signing macOS forgets them on every rebuild; to keep them, create a self-signed
   code-signing certificate in your keychain and build with `MURMR_SIGN_ID="<its name>" app/scripts/bundle.sh`.
