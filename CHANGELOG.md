@@ -9,7 +9,7 @@ installing, not for the person reading the code. To publish a version, see "Rele
 
 ## [Unreleased]
 
-## [0.1.0] - not yet released
+## [0.1.0] - 2026-11-07
 
 The first public build.
 
