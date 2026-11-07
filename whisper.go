@@ -6,11 +6,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 	"unicode"
 )
@@ -45,11 +49,17 @@ func StartWhisper(ctx context.Context, model, port, prompt string, extra ...stri
 		"-l", "auto", "-nt", "-sns",
 		"--prompt", prompt,
 	}
-	cmd := exec.CommandContext(ctx, "whisper-server", append(args, extra...)...)
+	bin, err := whisperBinary()
+	if err != nil {
+		return nil, err
+	}
+	reapStaleServer(port) // an orphan on our port would answer the readiness check below and hide a failed start
+	log.Printf("whisper: using %s", bin)
+	cmd := exec.CommandContext(ctx, bin, append(args, extra...)...)
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("start whisper-server (brew install whisper-cpp?): %w", err)
+		return nil, fmt.Errorf("start whisper-server: %w", err)
 	}
 	w := &Whisper{
 		cmd:  cmd,
@@ -69,6 +79,53 @@ func StartWhisper(ctx context.Context, model, port, prompt string, extra ...stri
 	}
 	_ = cmd.Process.Kill()
 	return nil, fmt.Errorf("whisper-server not ready after 60s")
+}
+
+// whisperBinary finds whisper-server: MURMR_WHISPER if set, else the copy bundled next to the engine (inside
+// "Murmr Stream.app", so nothing needs installing), else whatever is on PATH (a source checkout with Homebrew).
+func whisperBinary() (string, error) {
+	if p := os.Getenv("MURMR_WHISPER"); p != "" {
+		return p, nil
+	}
+	if self, err := os.Executable(); err == nil {
+		if p := filepath.Join(filepath.Dir(self), "whisper-server"); fileExists(p) {
+			return p, nil
+		}
+	}
+	if p, err := exec.LookPath("whisper-server"); err == nil {
+		return p, nil
+	}
+	return "", fmt.Errorf("whisper-server not found: it is bundled in the app; from a source checkout run `brew install whisper-cpp` or app/scripts/build-whisper.sh")
+}
+
+// isOrphanedWhisper reads one line of `ps -o ppid=,comm=` and says whether it is a whisper-server whose parent
+// is gone (launchd, pid 1). Those are what an engine that was killed hard leaves behind, each holding ~700 MB.
+func isOrphanedWhisper(psLine string) bool {
+	f := strings.Fields(psLine)
+	if len(f) < 2 || f[0] != "1" {
+		return false
+	}
+	return filepath.Base(strings.Join(f[1:], " ")) == "whisper-server"
+}
+
+// reapStaleServer stops an orphaned whisper-server still listening on port. It only touches processes that are
+// named whisper-server AND have no parent, so a server someone started on purpose is left alone.
+func reapStaleServer(port string) {
+	out, err := exec.Command("lsof", "-nP", "-iTCP:"+port, "-sTCP:LISTEN", "-t").Output()
+	if err != nil {
+		return // nothing listening (lsof exits 1)
+	}
+	for _, pid := range strings.Fields(string(out)) {
+		line, err := exec.Command("ps", "-o", "ppid=,comm=", "-p", pid).Output()
+		if err != nil || !isOrphanedWhisper(string(line)) {
+			continue
+		}
+		if n, err := strconv.Atoi(pid); err == nil {
+			log.Printf("whisper: stopping orphaned server %d left on port %s", n, port)
+			_ = syscall.Kill(n, syscall.SIGTERM)
+			time.Sleep(500 * time.Millisecond)
+		}
+	}
 }
 
 func (w *Whisper) Stop() {

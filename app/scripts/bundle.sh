@@ -11,6 +11,9 @@ APP="build/Murmr Stream.app"
 echo "==> engine (Go)"
 (cd .. && go build -o app/build/murmr .)
 
+echo "==> speech engine (whisper-server, one self-contained file; built once, see scripts/build-whisper.sh)"
+[[ -x vendor/whisper-server ]] || scripts/build-whisper.sh
+
 echo "==> shell (Swift)"
 swift build -c release
 BIN="$(swift build -c release --show-bin-path)/MurmrStream"
@@ -21,8 +24,13 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/MurmrStream"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp build/murmr "$APP/Contents/Resources/murmr"
+cp vendor/whisper-server "$APP/Contents/Resources/whisper-server"
+mkdir -p "$APP/Contents/Resources/licenses"
+cp vendor/licenses/* "$APP/Contents/Resources/licenses/"
 
 echo "==> sign (${MURMR_SIGN_ID:--})"
+# the helpers first, then the app around them
+codesign --force --sign "${MURMR_SIGN_ID:--}" "$APP/Contents/Resources/whisper-server" "$APP/Contents/Resources/murmr"
 codesign --force --deep --sign "${MURMR_SIGN_ID:--}" "$APP"
 codesign --verify --deep --strict "$APP"
 

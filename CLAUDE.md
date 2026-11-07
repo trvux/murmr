@@ -9,6 +9,8 @@ Go engine at the repo root, Swift/SwiftUI app shell in `app/`.
 - Bundle the `.app`: `app/scripts/bundle.sh`. Set `MURMR_SIGN_ID="Murmr Stream Dev"` so macOS keeps the
   granted permissions (Microphone, Input Monitoring, Accessibility) across rebuilds; ad-hoc signing
   resets them every time.
+- `bundle.sh` needs `app/vendor/whisper-server`; if missing it runs `app/scripts/build-whisper.sh` (needs cmake).
+  Never copy Homebrew's whisper-server into the app: dynamic libraries and macOS-27-only.
 - Quit the running app before opening a new build (`open` on a running app only focuses the old one).
 
 ## UI work: brand first, code second

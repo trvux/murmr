@@ -9,3 +9,25 @@ func TestHasWord(t *testing.T) {
 		}
 	}
 }
+
+func TestIsOrphanedWhisper(t *testing.T) {
+	for line, want := range map[string]bool{
+		"    1 /opt/homebrew/Cellar/whisper.cpp/1.9.5/bin/whisper-server":        true,
+		"    1 /Applications/Murmr Stream.app/Contents/Resources/whisper-server": true,
+		" 4242 /opt/homebrew/bin/whisper-server":                                 false, // still has a parent
+		"    1 /usr/bin/python3":                                                 false, // not ours
+		"    1 /tmp/not-whisper-server-2":                                        false,
+		"":                                                                       false,
+	} {
+		if got := isOrphanedWhisper(line); got != want {
+			t.Errorf("%q: got %v, want %v", line, got, want)
+		}
+	}
+}
+
+func TestWhisperBinaryPrefersOverride(t *testing.T) {
+	t.Setenv("MURMR_WHISPER", "/custom/whisper-server")
+	if p, err := whisperBinary(); err != nil || p != "/custom/whisper-server" {
+		t.Errorf("override ignored: %q %v", p, err)
+	}
+}

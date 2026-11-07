@@ -76,10 +76,16 @@ follows your voice, then "Đang chép lời" / "Đang dọn văn", then the past
 notch it floats under the top edge.
 
 ```sh
-app/scripts/bundle.sh                 # builds the engine and "Murmr Stream.app" into app/build/
+app/scripts/bundle.sh                 # builds the engine, whisper-server and "Murmr Stream.app" into app/build/
 open "app/build/Murmr Stream.app"
 ```
 
+- **Nothing to install for users.** The app carries its own `whisper-server`: one self-contained file built from
+  whisper.cpp by `app/scripts/build-whisper.sh` (static, Metal embedded, runs on macOS 14 or later; the first
+  `bundle.sh` runs it for you and needs `brew install cmake`). Homebrew's `whisper-cpp` is only needed to run from
+  a terminal with `./run.sh`; it links libraries by absolute path and is built for the newest macOS only, so it
+  cannot be copied into an app. On start the engine also stops an orphaned `whisper-server` left on its port by a
+  crashed run.
 - **Permissions.** The app asks for Microphone, Input Monitoring (the Option key) and Accessibility
   (pasting). With ad-hoc signing macOS forgets them on every rebuild; to keep them, create a self-signed
   code-signing certificate in your keychain and build with `MURMR_SIGN_ID="<its name>" app/scripts/bundle.sh`.

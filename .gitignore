@@ -23,3 +23,5 @@ __pycache__/
 # macOS app shell
 /app/build/
 /app/.build/
+# whisper.cpp source and its self-built whisper-server (rebuilt by app/scripts/build-whisper.sh)
+/app/vendor/
