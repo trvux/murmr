@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         UserDefaults.standard.register(defaults: ["notchEars": true, "waveStyle": WaveStyle.flock.rawValue])
         state.restartHandler = { [weak self] in self?.engine.restart() }
+        state.holdKeyHandler = { [weak self] spec in self?.engine.sendHoldKey(spec) }
         panel = NotchPanel(state: state)
         panel.orderFrontRegardless()
         buildMenu()

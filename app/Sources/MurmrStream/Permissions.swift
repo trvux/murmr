@@ -22,7 +22,7 @@ enum PermissionKind: CaseIterable, Identifiable {
     var why: String {
         switch self {
         case .microphone: return "Để nghe bạn nói. Chỉ thu âm khi bạn đang giữ phím."
-        case .inputMonitoring: return "Để biết lúc phím ⌥ phải được giữ hoặc thả. App không đọc bạn gõ chữ gì."
+        case .inputMonitoring: return "Để biết lúc bạn giữ hoặc thả phím nói. App chỉ so với phím bạn đã chọn, không ghi lại và không đọc bạn gõ gì."
         case .accessibility: return "Để dán chữ vào app bạn đang dùng."
         }
     }

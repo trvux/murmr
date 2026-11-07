@@ -22,7 +22,7 @@ enum Snapshot {
 
         let state = AppState()
         state.engineReady = true
-        state.engineStatus = "Sẵn sàng · giữ Option phải để nói"
+        state.engineStatus = "Sẵn sàng · giữ \(state.holdKey.label) để nói"
         if ProcessInfo.processInfo.environment["MURMR_SNAPSHOT_ENGINE"] == "stopped" {  // the failed state, for checking its look
             state.engineReady = false
             state.engineStatus = "Engine dừng: không tải được model giọng nói"
@@ -361,6 +361,43 @@ enum Snapshot {
         }
         try? FileManager.default.removeItem(atPath: home)
         AppsFile.overridePath = nil
+
+        // --- the dictation key: what a person's presses become
+        func run(_ inputs: [KeyInput]) -> [HoldKeyRecognizer.Outcome] {
+            var r = HoldKeyRecognizer()
+            return inputs.map { r.feed($0) }
+        }
+        func flagsEvent(_ code: Int, _ flags: UInt) -> KeyInput { KeyInput(kind: .flags, keyCode: code, flags: flags, characters: "") }
+        func downEvent(_ code: Int, _ flags: UInt, _ chars: String = "") -> KeyInput { KeyInput(kind: .down, keyCode: code, flags: flags, characters: chars) }
+        let ctrl: UInt = 0x40000, opt: UInt = 0x80000, cmd: UInt = 0x100000, shift: UInt = 0x20000
+        let rightOption = run([flagsEvent(61, opt | 0x40), flagsEvent(61, 0)])
+        check("right Option held and let go alone is a modifier key", rightOption.last == .commit(HoldKey(spec: "mod:61", label: "⌥ phải")))
+        check("left Command alone is a modifier key, named left",
+              run([flagsEvent(55, cmd | 0x8), flagsEvent(55, 0)]).last == .commit(HoldKey(spec: "mod:55", label: "⌘ trái")))
+        check("fn alone", run([flagsEvent(63, 0x800000), flagsEvent(63, 0)]).last == .commit(HoldKey(spec: "mod:63", label: "fn")))
+        check("Control then Option then Space is the combination, in ⌃⌥ order",
+              run([flagsEvent(59, ctrl | 0x1), flagsEvent(58, ctrl | opt | 0x21), downEvent(49, ctrl | opt | 0x21, " ")]).last
+              == .commit(HoldKey(spec: "combo:49:c0000", label: "⌃⌥ Space")))
+        check("two modifiers let go without a key choose nothing",
+              !run([flagsEvent(59, ctrl | 0x1), flagsEvent(58, ctrl | opt | 0x21), flagsEvent(58, ctrl | 0x1), flagsEvent(59, 0)]).contains { if case .commit = $0 { return true } else { return false } })
+        check("a function key alone is allowed", run([downEvent(105, 0)]).last == .commit(HoldKey(spec: "combo:105:0", label: "F13")))
+        check("a letter with Command and Shift", run([downEvent(16, cmd | shift, "y")]).last == .commit(HoldKey(spec: "combo:16:120000", label: "⇧⌘ Y")))
+        check("a plain letter is refused (it would type)", { if case .reject = run([downEvent(0, 0, "a")]).last! { return true } else { return false } }())
+        check("Command+C is refused (copy)", { if case .reject = run([downEvent(8, cmd, "c")]).last! { return true } else { return false } }())
+        check("Esc cancels", run([downEvent(53, 0)]).last == .cancel)
+
+        // what the app produces, the engine must accept (murmr holdkey <spec>)
+        let specs = ["mod:61", "mod:55", "mod:63", "combo:49:c0000", "combo:105:0", "combo:16:120000"]
+        let engineAgrees = specs.map { spec -> Bool? in
+            EngineCLI.runSync(["holdkey", spec]).map { $0.status == 0 }
+        }
+        if engineAgrees.contains(where: { $0 == nil }) {
+            print("info the engine was not found next to the app: the key-spec agreement check was skipped")
+        } else {
+            check("the engine accepts every key spec the app can produce", engineAgrees.allSatisfy { $0 == true })
+            check("the engine refuses a spec that is not a key", EngineCLI.runSync(["holdkey", "mod:12"])?.status != 0)
+        }
+        check("every key has a note or none, never an empty one", [HoldKey.standard, HoldKey(spec: "mod:55", label: "⌘ trái"), HoldKey(spec: "combo:49:c0000", label: "x")].allSatisfy { $0.note?.isEmpty != true })
 
         // --- Keychain wrapper on a throw-away service
         let service = "dev.trvux.murmr-stream.selftest"

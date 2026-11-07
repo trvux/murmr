@@ -4,13 +4,14 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -49,9 +50,19 @@ func daemon() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	if events != nil {
-		// Started by the macOS app shell: stop when the shell goes away (its end of our stdin closes).
+		// Started by the macOS app shell: stop when the shell goes away (its end of our stdin closes). The shell can also
+		// send lines: "key <spec>" changes the dictation key right away (see holdkey.go), without a restart.
 		go func() {
-			_, _ = io.Copy(io.Discard, os.Stdin)
+			sc := bufio.NewScanner(os.Stdin)
+			for sc.Scan() {
+				if spec, ok := strings.CutPrefix(sc.Text(), "key "); ok {
+					if err := SetHoldKey(spec); err != nil {
+						log.Printf("dictation key: %v", err)
+					} else {
+						log.Printf("dictation key changed")
+					}
+				}
+			}
 			cancel()
 		}()
 	}
@@ -108,6 +119,11 @@ func daemon() {
 	defer rec.Close()
 
 	events.emit("loading", "stage", "keys")
+	if spec := os.Getenv("MURMR_KEY"); spec != "" { // the key the user chose; otherwise the right Option
+		if err := SetHoldKey(spec); err != nil {
+			log.Printf("dictation key: %v (using the right Option)", err)
+		}
+	}
 	keys, err := StartHoldKey()
 	if err != nil {
 		log.Fatal(err)
@@ -122,7 +138,7 @@ func daemon() {
 	}()
 
 	playSound(getenv("MURMR_SOUND_READY", "Glass"))
-	log.Printf("ready. hold RIGHT Option to dictate, Ctrl+C to quit")
+	log.Printf("ready. hold the dictation key (default: right Option), Ctrl+C to quit")
 	events.emit("ready")
 
 	stopLevels, stopPreview := func() {}, func() {}

@@ -60,6 +60,13 @@ no dictated text.
 Each service has its own terms and data policies (an aggregator such as OpenRouter adds one more party between you and the model). Read them before enabling a service, because
 dictated text can contain private things. If you choose "Không dùng AI", no text is sent anywhere.
 
+## The keyboard
+
+To know when you hold your dictation key, the engine reads key events (Input Monitoring) and compares only their key
+codes with the key you chose. It does not read what you type, and nothing about keystrokes is written to disk, logged
+or sent anywhere. If you choose a key combination, the same tap keeps that one combination from reaching the app in
+front while you hold it (this uses the Accessibility permission).
+
 ## What the author receives
 
 Nothing. The code makes no other network calls: the only addresses it contacts are the service you chose (and the backup, if you

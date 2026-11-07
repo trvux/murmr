@@ -423,9 +423,16 @@ final class DemoSignal: ObservableObject {
 struct GeneralPage: View {
     @ObservedObject var state: AppState
     let actions: SettingsActions
+    @StateObject private var capture = HoldKeyCapture()
 
     private var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+    }
+
+    private var keyDetail: String {
+        if let message = capture.message { return message }
+        if capture.listening { return "Nhấn phím hoặc tổ hợp phím bạn muốn dùng. Nhấn Esc để huỷ." }
+        return "Giữ để nói, thả ra để dán. Bấm vào ô bên phải rồi nhấn phím bạn muốn."
     }
 
     var body: some View {
@@ -439,8 +446,15 @@ struct GeneralPage: View {
                     OutlineButton(title: "Khởi động lại", symbol: "arrow.clockwise", action: actions.restartEngine)
                 }
                 Hairline()
-                SettingRow(title: "Phím nói", detail: "Giữ để nói, thả ra để dán.") {
-                    KeyChip(text: "⌥ phải")
+                SettingRow(title: "Phím nói", detail: keyDetail) {
+                    HoldKeyField(state: state, capture: capture)
+                }
+                if let warning = state.holdKey.note {
+                    Text(warning)
+                        .font(Theme.Typeface.caption)
+                        .foregroundStyle(Theme.inkMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.bottom, Theme.Space.m)
                 }
             }
 
@@ -477,6 +491,46 @@ struct DataRow: View {
                     .truncationMode(.middle)
                 OutlineButton(title: "Mở", symbol: "arrow.up.right", action: action)
             }
+        }
+    }
+}
+
+/// The dictation key: click it, then press the key or combination you want.
+struct HoldKeyField: View {
+    @ObservedObject var state: AppState
+    @ObservedObject var capture: HoldKeyCapture
+
+    var body: some View {
+        HStack(spacing: Theme.Space.m) {
+            if !state.holdKey.isStandard && !capture.listening {
+                Button("Đặt lại") { state.setHoldKey(.standard) }
+                    .buttonStyle(.plain)
+                    .font(Theme.Typeface.caption)
+                    .foregroundStyle(Theme.inkMuted)
+            }
+            Button(action: toggle) {
+                Text(capture.listening ? "Nhấn phím…" : state.holdKey.label)
+                    .font(Theme.Typeface.mono)
+                    .foregroundStyle(capture.listening ? Theme.signal : Theme.ink)
+                    .padding(.horizontal, Theme.Space.m)
+                    .padding(.vertical, Theme.Space.xs)
+                    .background(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous).fill(Theme.paperRaised))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                            .strokeBorder(capture.listening ? Theme.signal : Theme.rule, lineWidth: capture.listening ? 1.5 : 1)
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Phím nói, hiện là \(state.holdKey.label). Bấm để đổi.")
+        }
+        .onDisappear { capture.stop() }
+    }
+
+    private func toggle() {
+        if capture.listening {
+            capture.stop()
+        } else {
+            capture.start { key in state.setHoldKey(key) }
         }
     }
 }

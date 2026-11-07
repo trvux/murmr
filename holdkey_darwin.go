@@ -8,29 +8,32 @@ import "C"
 
 import (
 	"fmt"
+	"log"
 	"runtime"
 )
 
-var holdEvents = make(chan bool, 8)
-
-//export goKeyEvent
-func goKeyEvent(down C.int) {
-	select {
-	case holdEvents <- down != 0:
-	default: // never block the event tap thread
+//export goHoldEvent
+func goHoldEvent(kind C.int, keycode C.int, flags C.ulonglong, repeat C.int) C.int {
+	if hold.Handle(rawEvent{kind: rawKind(kind), keycode: int(keycode), flags: uint64(flags), repeat: repeat != 0}) {
+		return 1
 	}
+	return 0
 }
 
-// StartHoldKey listens for the right Option key and reports true on press,
-// false on release.
+// StartHoldKey starts the event tap that watches for the dictation key (see holdkey.go) and returns the channel of
+// "down" and "up" events.
 func StartHoldKey() (<-chan bool, error) {
 	errc := make(chan error, 1)
 	go func() {
 		runtime.LockOSThread() // the run loop is bound to this thread
-		if C.tapCreate() != 0 {
+		mode := C.tapCreate()
+		if mode < 0 {
 			errc <- fmt.Errorf("event tap refused: grant Input Monitoring to your terminal " +
 				"(System Settings > Privacy & Security > Input Monitoring), then restart it")
 			return
+		}
+		if mode == 0 {
+			log.Printf("key tap: listen-only (grant Accessibility so a key combination can be kept from typing its letter)")
 		}
 		errc <- nil
 		C.tapRun()

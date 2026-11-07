@@ -103,6 +103,7 @@ final class EngineController {
         env.merge(EnvFile.load(NSHomeDirectory() + "/.config/murmr/env")) { _, new in new }
         env.merge(keys) { _, new in new }  // keys saved in the Keychain win over the old env file
         env["MURMR_EVENTS"] = "1"
+        env["MURMR_KEY"] = HoldKey.saved.spec  // the dictation key the person chose
         // A GUI app does not inherit the shell PATH; whisper-server lives in Homebrew's bin.
         env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + (env["PATH"] ?? "/usr/bin:/bin")
         p.environment = env
@@ -147,6 +148,11 @@ final class EngineController {
         quitting = true
         stdinPipe?.fileHandleForWriting.closeFile()  // engine notices and shuts down cleanly
         process?.terminate()
+    }
+
+    /// Tells the running engine to use another dictation key now (it also reads MURMR_KEY at every start).
+    func sendHoldKey(_ spec: String) {
+        try? stdinPipe?.fileHandleForWriting.write(contentsOf: Data("key \(spec)\n".utf8))
     }
 
     func restart() {

@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 )
 
 func runCommand(name string, args []string) error {
@@ -20,6 +22,10 @@ func runCommand(name string, args []string) error {
 		return cmdHints()
 	case "pronouns":
 		return cmdPronouns(args)
+	case "holdkey":
+		return cmdHoldKey(args)
+	case "holdkey-check":
+		return cmdHoldKeyCheck(args)
 	case "drill":
 		return cmdDrill(args)
 	case "progress":
@@ -241,4 +247,52 @@ func cmdFetchModels() error {
 			fmt.Fprintf(os.Stderr, "%s: %d%% (%d / %d MB)\n", id, pct, done/1_000_000, total/1_000_000)
 		}
 	})
+}
+
+// cmdHoldKeyCheck starts the real event tap with a dictation key spec and prints "down" and "up" as they happen, for a
+// few seconds: `murmr holdkey-check combo:105:0 8`. A way to see that a key is recognised without dictating.
+func cmdHoldKeyCheck(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: murmr holdkey-check <spec> [seconds]")
+	}
+	if err := SetHoldKey(args[0]); err != nil {
+		return err
+	}
+	seconds := 8
+	if len(args) > 1 {
+		if n, err := strconv.Atoi(args[1]); err == nil && n > 0 {
+			seconds = n
+		}
+	}
+	keys, err := StartHoldKey()
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stderr, "watching for %s for %d s\n", args[0], seconds)
+	deadline := time.After(time.Duration(seconds) * time.Second)
+	for {
+		select {
+		case d := <-keys:
+			if d {
+				fmt.Println("down")
+			} else {
+				fmt.Println("up")
+			}
+		case <-deadline:
+			return nil
+		}
+	}
+}
+
+// cmdHoldKey says whether the engine accepts a dictation key spec ("ok" and exit 0, or an error): the Settings window's
+// self-test uses it to check that what the app produces is what the engine understands.
+func cmdHoldKey(args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("usage: murmr holdkey <spec>")
+	}
+	if _, err := ParseHoldKey(args[0]); err != nil {
+		return err
+	}
+	fmt.Println("ok")
+	return nil
 }

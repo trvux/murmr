@@ -50,6 +50,18 @@ final class AppState: ObservableObject {
 
     var isLoading: Bool { !loadStage.isEmpty }
 
+    /// The key held to dictate, as people read it ("⌥ phải"); the engine gets its spec (see HoldKey.swift).
+    @Published var holdKey = HoldKey.saved
+    var holdKeyHandler: ((String) -> Void)?
+
+    /// Changes the dictation key at once: saved, shown everywhere, and sent to the running engine (no restart).
+    func setHoldKey(_ key: HoldKey) {
+        key.save()
+        holdKey = key
+        engineStatus = engineReady ? "Sẵn sàng · giữ \(key.label) để nói" : engineStatus
+        holdKeyHandler?(key.spec)
+    }
+
     /// Something the engine only reads at startup (dictionary, API keys...) changed. Cleared when it restarts.
     @Published var needsRestart = false
     var restartHandler: (() -> Void)?
@@ -79,7 +91,7 @@ final class AppState: ObservableObject {
             }
         case "ready":
             engineReady = true
-            engineStatus = "Sẵn sàng · giữ Option phải để nói"
+            engineStatus = "Sẵn sàng · giữ \(holdKey.label) để nói"
             setPhase(.idle)
             finishLoading()
         case "recording":

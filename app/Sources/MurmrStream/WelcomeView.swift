@@ -10,6 +10,7 @@ struct WelcomeView: View {
     var openAISettings: () -> Void = {}
     var finish: () -> Void = {}
     @State private var step: Step
+    @StateObject private var capture = HoldKeyCapture()
 
     init(state: AppState, permissions: Permissions, initialStep: Step = .hello, openAISettings: @escaping () -> Void = {}, finish: @escaping () -> Void = {}) {
         self.state = state
@@ -81,8 +82,16 @@ struct WelcomeView: View {
             heading("Xin chào", "Murmr Stream chép lời bạn nói và dán vào đúng app bạn đang dùng.")
             VStack(alignment: .leading, spacing: Theme.Space.m) {
                 HStack(spacing: Theme.Space.m) {
-                    KeyChip(text: "⌥ phải")
-                    Text("Giữ phím này, nói, rồi thả ra.").font(Theme.Typeface.body).foregroundStyle(Theme.ink)
+                    HoldKeyField(state: state, capture: capture)
+                    Text(capture.message ?? (capture.listening
+                         ? "Nhấn phím hoặc tổ hợp bạn muốn. Nhấn Esc để huỷ."
+                         : "Giữ phím này, nói, rồi thả ra. Bấm vào phím để đổi sang phím bạn thích."))
+                        .font(Theme.Typeface.body)
+                        .foregroundStyle(capture.message == nil ? Theme.ink : Theme.signal)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let note = state.holdKey.note {
+                    Text(note).font(Theme.Typeface.caption).foregroundStyle(Theme.inkMuted).fixedSize(horizontal: false, vertical: true)
                 }
                 bullet("Giọng nói được xử lý ngay trên máy bạn.")
                 bullet("Khoá AI (nếu bạn thêm) nằm trong Keychain, không gửi về máy chủ nào của chúng tôi.")
@@ -158,7 +167,7 @@ struct WelcomeView: View {
 
     private var ready: some View {
         VStack(spacing: Theme.Space.xl) {
-            heading("Sẵn sàng", "Mở một ô soạn thảo bất kỳ, giữ ⌥ phải và nói. Thả ra, chữ sẽ hiện ở đó.")
+            heading("Sẵn sàng", "Mở một ô soạn thảo bất kỳ, giữ \(state.holdKey.label) và nói. Thả ra, chữ sẽ hiện ở đó. Muốn đổi phím, vào Cài đặt, mục Chung.")
             VStack(alignment: .leading, spacing: Theme.Space.m) {
                 bullet("Biểu tượng sóng ở thanh menu mở Cài đặt: từ điển, app, AI.")
                 bullet("Mở lại hướng dẫn này bất cứ lúc nào từ menu đó.")

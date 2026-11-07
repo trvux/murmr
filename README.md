@@ -43,7 +43,11 @@ After that it opens like any other app, and a short welcome window walks through
 
 ## What it does
 
-- **Hold-to-talk** on the right Option key (a listen-only `CGEventTap`; the key still works normally).
+- **Hold-to-talk** on a key you choose (default: the right Option). Pick it in the welcome window or Settings, General: a
+  modifier on its own (either Option, Command, Control or Shift, or fn; the key still works normally), a function key,
+  or a combination such as Control+Option+Space. A combination is kept from reaching the app in front while you hold it.
+  It changes at once, with no restart. The engine reads key events through a `CGEventTap` and compares only the key codes
+  with your choice; nothing is recorded.
 - **Local speech-to-text**: whisper.cpp `large-v3-turbo` (q5_0) behind `whisper-server`, with Silero VAD so
   silence and noise are ignored instead of turned into invented text.
 - **LLM cleanup** with DeepSeek (default) or Claude Haiku: removes fillers, fixes punctuation and
@@ -94,7 +98,7 @@ echo 'export DEEPSEEK_API_KEY=...' > ~/.config/murmr/env && chmod 600 ~/.config/
 ./run.sh
 ```
 
-macOS will ask for **Microphone**, **Input Monitoring** (the Option key) and **Accessibility** (pasting)
+macOS will ask for **Microphone**, **Input Monitoring** (to see your dictation key) and **Accessibility** (pasting, and keeping a key combination from typing)
 for your terminal. Without a cleanup key it still works, with raw Whisper output.
 
 ## macOS app
@@ -117,7 +121,7 @@ open "app/build/Murmr Stream.app"
   crashed run.
 - **Welcome window.** On first launch (and from the menu, "Hướng dẫn ban đầu…") a short guide walks through the three
   permissions with live status, then the model download. The mascot is drawn in `Theme.swift` (`Mascot`, six moods).
-- **Permissions.** The app asks for Microphone, Input Monitoring (the Option key) and Accessibility
+- **Permissions.** The app asks for Microphone, Input Monitoring (to see your dictation key) and Accessibility
   (pasting). With ad-hoc signing macOS forgets them on every rebuild; to keep them, create a self-signed
   code-signing certificate in your keychain and build with `MURMR_SIGN_ID="<its name>" app/scripts/bundle.sh`.
 - **Settings** (menu bar icon, "Cài đặt…"):
@@ -158,6 +162,7 @@ and `MurmrStream --snapshot <dictionary|apps|ai|appearance|general|pills> out.pn
 | `./murmr fetch-models` | download the two speech models now (the app does it on first launch) |
 | `./murmr providers` | the services the engine knows, as JSON (what the AI page draws) |
 | `./murmr models <id>` | the models a service offers for your key, as JSON (what the model menu shows) |
+| `./murmr holdkey-check <spec> [seconds]` | run the real key tap and print `down` / `up` (e.g. `combo:105:0` is F13, `mod:61` the right Option) |
 | `./murmr pronouns` | the starting points for a way of addressing, as JSON (what the Xưng hô page offers) |
 | `./murmr clean [--as "tao / mày / tụi tao"] "<text>"` | run only the cleanup step, to try prompt changes or a way of addressing |
 | `./murmr drill` | read practice sentences, get phoneme-level feedback and a replay in your voice |
@@ -230,6 +235,7 @@ Set in `~/.config/murmr/env` (all optional except a cleanup key if you want clea
 | `MURMR_CONFIDENCE` | off | `on` adds per-word confidence, costs about 0.8 s per dictation |
 | `MURMR_PREVIEW` / `MURMR_PREVIEW_PORT` | off / `8179` | `on` starts the second server for live captions (app shell only) |
 | `MURMR_SOUND_START/STOP/READY` | `Tink`/`Pop`/`Glass` | macOS system sound names, or `off` |
+| `MURMR_KEY` | `mod:61` | the dictation key: `mod:<key code>` for a modifier alone, `combo:<key code>:<modifier flags in hex>` otherwise (the app writes it) |
 | `MURMR_DICT`, `MURMR_PORT`, `MURMR_SAVE` | | dictionary path, whisper-server port, directory to save clips |
 
 Pronoun rules live in `~/.config/murmr/apps.txt`, one per line: `profile tao-may = tao / mày / tụi tao` defines a way of

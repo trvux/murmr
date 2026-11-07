@@ -14,7 +14,9 @@ installing, not for the person reading the code. To publish a version, see "Rele
 The first public build.
 
 ### Added
-- Hold the right Option key, speak, release: the text is pasted into the app you are using. Speech recognition
+- Hold a key, speak, release: the text is pasted into the app you are using. The key is yours to choose (the right
+  Option by default): another modifier on its own, a function key, or a combination, set in the welcome window or in
+  Settings and changed at once. Speech recognition
   runs on your Mac (Whisper large-v3-turbo with voice-activity detection), built for Vietnamese mixed with English.
 - AI cleanup of the text (fillers, punctuation, mis-heard terms, pronouns) with the service you choose: DeepSeek,
   Claude, OpenAI, Gemini, Kimi, OpenRouter, Ollama on your own machine, or any OpenAI-compatible address.
