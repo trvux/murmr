@@ -40,6 +40,7 @@ enum Theme {
     /// The notch pill: the body must be true black to merge with the hardware notch.
     static let pillBody = Color.black
     static let pillInk = Color(nsColor: NSColor(hex: 0xF6F2E9))
+    static let pillAccent = Color(nsColor: NSColor(hex: 0xE0825C))  // the clay, lifted to read on black
 
     // MARK: space (4pt scale)
 
@@ -411,12 +412,16 @@ struct MenuField<Content: View>: View {
 /// One wing-beat: two curved arms that meet at the body, like a bird seen from a distance. The brand's mark is a
 /// flock of these (a murmuration: "Murmr" is its first syllables), one of them in the accent colour.
 struct WingBeat: Shape {
+    /// 1 is the brand's resting "v" (the flock in the logo); 0 flattens the arms into a line, so a bird can flap.
+    var amp: CGFloat = 1
+
     func path(in r: CGRect) -> Path {
         let w = r.width
+        let arm = 0.40 * w - 0.08 * w * amp, control = 0.40 * w - 0.36 * w * amp, dip = 0.40 * w + 0.10 * w * amp
         var p = Path()
-        p.move(to: CGPoint(x: r.minX, y: r.minY + 0.32 * w))
-        p.addQuadCurve(to: CGPoint(x: r.minX + 0.5 * w, y: r.minY + 0.50 * w), control: CGPoint(x: r.minX + 0.25 * w, y: r.minY + 0.04 * w))
-        p.addQuadCurve(to: CGPoint(x: r.maxX, y: r.minY + 0.32 * w), control: CGPoint(x: r.minX + 0.75 * w, y: r.minY + 0.04 * w))
+        p.move(to: CGPoint(x: r.minX, y: r.minY + arm))
+        p.addQuadCurve(to: CGPoint(x: r.minX + 0.5 * w, y: r.minY + dip), control: CGPoint(x: r.minX + 0.25 * w, y: r.minY + control))
+        p.addQuadCurve(to: CGPoint(x: r.maxX, y: r.minY + arm), control: CGPoint(x: r.minX + 0.75 * w, y: r.minY + control))
         return p
     }
 }

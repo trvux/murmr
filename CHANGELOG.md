@@ -28,6 +28,9 @@ The first public build.
   resumable and checked against a fixed checksum. Nothing to install first.
 - An app icon (a murmuration: a flock of small birds, one in clay) and an installer window that shows where to drag the
   app and what the first-launch "Open Anyway" row in System Settings looks like.
+- The notch wave is a flock by default ("Bầy chim"): six small birds that sit flat when you are quiet and lift and open
+  their wings, the brand's "v", as you speak; the newest is clay. The other wave styles are still in Settings.
+- The mascot also speaks in empty, waiting and failed states (empty dictionary, scanning apps, engine stopped, a key test).
 - A welcome window on first launch, with the mascot (a plump bird from the flock): what the app does, the three
   macOS permissions (each with its status and a button), the model download with its progress, and how to use it.
   It can be reopened from the menu ("Hướng dẫn ban đầu…").

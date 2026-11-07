@@ -15,9 +15,9 @@ struct NotchView: View {
     /// Chosen in Settings; stored in UserDefaults.
     @AppStorage("notchEars") private var ears = true
     /// Which wave is drawn while recording; chosen in Settings.
-    @AppStorage("waveStyle") private var waveStyleRaw = WaveStyle.line.rawValue
+    @AppStorage("waveStyle") private var waveStyleRaw = WaveStyle.flock.rawValue
 
-    private var waveStyle: WaveStyle { WaveStyle(rawValue: waveStyleRaw) ?? .line }
+    private var waveStyle: WaveStyle { WaveStyle(rawValue: waveStyleRaw) ?? .flock }
     private var usesEars: Bool { layout.hasNotch && ears }
 
     private func size(for phase: Phase) -> CGSize {
@@ -163,10 +163,11 @@ struct NotchView: View {
 /// The wave shown while recording. All of them are short and tapered or faded at the ends,
 /// drawn in `pillInk`; pick one in Settings.
 enum WaveStyle: String, CaseIterable {
-    case line, bars, dots, ribbon, pulse
+    case flock, line, bars, dots, ribbon, pulse
 
     var title: String {
         switch self {
+        case .flock: return "Bầy chim"
         case .line: return "Đường sóng mượt"
         case .bars: return "Vạch đối xứng mảnh"
         case .dots: return "Chuỗi chấm"
@@ -183,11 +184,41 @@ struct WaveView: View {
 
     var body: some View {
         switch style {
+        case .flock: FlockWave(levels: levels)
         case .line: LineWave(level: level)
         case .bars: MirrorBars(levels: levels)
         case .dots: DotWave(levels: levels)
         case .ribbon: RibbonWave(levels: levels)
         case .pulse: PulseDots(level: level)
+        }
+    }
+}
+
+/// The brand's flock as a wave: seven small birds across the pill, sampled from the last two seconds of voice, the
+/// newest in clay on the right. Silence leaves them flat, as a resting line; the voice lifts each bird and opens its
+/// wings into the "v" of the logo, so loud speech is a flock rising, not a graph.
+struct FlockWave: View {
+    let levels: [CGFloat]
+
+    var body: some View {
+        Canvas { gc, size in
+            let n = 6
+            let step = max(1, levels.count / n)
+            let spacing = size.width / CGFloat(n)
+            for i in 0..<n {
+                let index = max(0, min(levels.count - 1, levels.count - 1 - (n - 1 - i) * step))
+                let level = pow(levels.isEmpty ? 0 : levels[index], 0.7)
+                let width = min(24, spacing * 0.85) * (0.75 + 0.35 * level)  // big enough to read as a bird at pill size
+                let amp = min(1, 0.2 + level * 1.1)
+                let x = spacing * (CGFloat(i) + 0.5)
+                let y = size.height / 2 - (level - 0.3) * min(size.height * 0.5, 8)
+                let origin = CGPoint(x: x - width / 2, y: y - width * 0.36)
+                let path = WingBeat(amp: amp).path(in: CGRect(origin: origin, size: CGSize(width: width, height: width)))
+                let newest = i == n - 1
+                let fade = 0.65 + 0.35 * Double(i) / Double(n - 1)
+                gc.stroke(path, with: .color(newest ? Theme.pillAccent : Theme.pillInk.opacity(fade)),
+                          style: StrokeStyle(lineWidth: max(1.6, width * 0.16), lineCap: .round, lineJoin: .round))
+            }
         }
     }
 }

@@ -15,7 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        UserDefaults.standard.register(defaults: ["notchEars": true, "waveStyle": WaveStyle.line.rawValue])
+        UserDefaults.standard.register(defaults: ["notchEars": true, "waveStyle": WaveStyle.flock.rawValue])
         state.restartHandler = { [weak self] in self?.engine.restart() }
         panel = NotchPanel(state: state)
         panel.orderFrontRegardless()

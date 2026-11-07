@@ -218,11 +218,11 @@ struct AppearancePage: View {
     let actions: SettingsActions
 
     @AppStorage("notchEars") private var ears = true
-    @AppStorage("waveStyle") private var selected = WaveStyle.line.rawValue
+    @AppStorage("waveStyle") private var selected = WaveStyle.flock.rawValue
     @StateObject private var signal = DemoSignal()
     private let columns = [GridItem(.adaptive(minimum: 170), spacing: Theme.Space.l)]
 
-    private var style: WaveStyle { WaveStyle(rawValue: selected) ?? .line }
+    private var style: WaveStyle { WaveStyle(rawValue: selected) ?? .flock }
 
     var body: some View {
         PageScaffold(title: "Giao diện", subtitle: "Viên thuốc trên notch hiện lên khi bạn nói. Chọn kiểu sóng và hình dạng của nó.") {
