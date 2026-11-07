@@ -824,3 +824,33 @@ struct MascotNote: View {
         }
     }
 }
+
+/// The flock line at silence, soft and loud on black, at the pill's real height (12 pt) and the settings tile's (24 pt),
+/// with the frame outlined so a stroke cut off by it shows. Rendered by `MurmrStream --wave-strip`.
+struct WaveStripArt: View {
+    private func history(_ base: CGFloat) -> [CGFloat] {
+        (0..<44).map { i in max(0, min(1, base * (0.55 + 0.45 * abs(sin(CGFloat(i) * 0.55))) + 0.05 * base * sin(CGFloat(i) * 2.3))) }
+    }
+
+    private func row(_ label: String, _ base: CGFloat, height: CGFloat) -> some View {
+        HStack(spacing: 14) {
+            Text(label).font(.system(size: 11)).foregroundStyle(Theme.inkMuted).frame(width: 70, alignment: .leading)
+            FlockWave(levels: history(base))
+                .frame(width: 280, height: height)
+                .overlay(Rectangle().strokeBorder(Color.red.opacity(0.5), lineWidth: 0.5))
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(Theme.pillBody)
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            row("im lặng", 0.02, height: 12)
+            row("nói nhỏ", 0.35, height: 12)
+            row("nói to", 0.9, height: 12)
+            row("to (tile)", 0.9, height: 24)
+        }
+        .padding(16)
+        .background(Theme.paper)
+    }
+}

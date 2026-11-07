@@ -184,6 +184,19 @@ enum Snapshot {
 
     enum Brand { case icon, dmgBackground, banner, guide }
 
+    /// The flock line at three levels on black, at the pill's real size (12 pt tall) and in the settings tile (24 pt),
+    /// with the frame drawn, so a bird or a stroke cut off by the frame is visible.
+    static func waveStrip(to path: String) {
+        NSAppearance.current = NSAppearance(named: .aqua)
+        let renderer = ImageRenderer(content: WaveStripArt())
+        renderer.scale = 3
+        if let image = renderer.nsImage, let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+           let png = rep.representation(using: .png, properties: [:]) {
+            try? png.write(to: URL(fileURLWithPath: path))
+            print("wrote \(path)")
+        }
+    }
+
     /// Draws brand artwork to a PNG at 1x, and at 2x next to it (`name@2x.png`) for the disk-image background.
     /// Always in the light appearance, whatever the Mac is set to.
     static func renderBrand(_ brand: Brand, to path: String, dark: Bool = false) {

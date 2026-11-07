@@ -167,7 +167,7 @@ enum WaveStyle: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .flock: return "Bầy chim"
+        case .flock: return "Nét vẽ Murmr"
         case .line: return "Đường sóng mượt"
         case .bars: return "Vạch đối xứng mảnh"
         case .dots: return "Chuỗi chấm"
@@ -194,36 +194,65 @@ struct WaveView: View {
     }
 }
 
-/// The brand's flock as a wave: a long, fine line of small birds across the pill, one per slice of the last two seconds
-/// of voice, the newest in clay on the right and the older ones fading behind it like a trail. Silence leaves them
-/// flat on one line; the voice lifts each bird and opens its wings into the logo's "v". Every bird is kept inside the
-/// frame (its top and bottom, with the stroke), so none is ever cut off at the edge.
+/// The brand's mark as a wave: one continuous drawn line made of the logo's wing-beat curves joined end to end (each a
+/// rounded arm that falls into a point, like the birds of the flock), so it keeps the logo's hand but is a single
+/// stroke. Silence leaves it a calm, nearly flat line; the voice lifts and deepens each beat and sends a ripple along
+/// it. It fades in from the left and ends in clay, and it is kept inside the frame, so no part is cut off.
 struct FlockWave: View {
     let levels: [CGFloat]
 
+    /// The line for the last `levels`, at time `t`, drawn into `size`. Pure, so it can be checked without a window.
+    static func path(levels: [CGFloat], size: CGSize, line: CGFloat, t: Double) -> Path {
+        let beats = max(6, min(24, Int(size.width / 15)))
+        let step = max(1, levels.count / beats)
+        let span = size.width / CGFloat(beats)
+        let margin = line / 2 + 0.5
+        func level(_ j: Int) -> CGFloat {  // joint j sits between beat j - 1 and j; the newest sample is on the right
+            let i = max(0, min(levels.count - 1, levels.count - 1 - (beats - j) * step))
+            let v = levels.isEmpty ? 0 : pow(levels[i], 0.7)
+            let shimmer = 0.78 + 0.22 * sin(t * 7 + Double(j) * 0.9)  // a ripple running along the line
+            return min(1, v * CGFloat(shimmer))
+        }
+        func clamp(_ y: CGFloat) -> CGFloat { min(max(y, margin), size.height - margin) }
+        let mid = size.height / 2
+        let lift = size.height * 0.3
+        let joints = (0...beats).map { j in clamp(mid + size.height * 0.12 - level(j) * lift) }
+
+        var p = Path()
+        p.move(to: CGPoint(x: 0, y: joints[0]))
+        for k in 0..<beats {
+            let amp = min(1, 0.12 + (level(k) + level(k + 1)) * 0.55)
+            let x0 = CGFloat(k) * span, x1 = x0 + span, xm = x0 + span / 2
+            let y0 = joints[k], y1 = joints[k + 1]
+            let dip = clamp((y0 + y1) / 2 + span * 0.12 * amp)
+            // the arm rises into an arch before it falls into the point, as in the logo
+            func arch(_ from: CGFloat, _ cx: CGFloat) -> CGFloat {
+                let wanted = (from + dip) / 2 - span * 0.34 * amp
+                let top = (from + 2 * wanted + dip) / 4  // where the curve actually peaks
+                return top < margin ? (4 * margin - from - dip) / 2 : wanted
+            }
+            p.addQuadCurve(to: CGPoint(x: xm, y: dip), control: CGPoint(x: x0 + span * 0.25, y: arch(y0, x0)))
+            p.addQuadCurve(to: CGPoint(x: x1, y: y1), control: CGPoint(x: x0 + span * 0.75, y: arch(y1, x1)))
+        }
+        return p
+    }
+
     var body: some View {
-        Canvas { gc, size in
-            let n = max(8, min(16, Int(size.width / 18)))
-            let step = max(1, levels.count / n)
-            let spacing = size.width / CGFloat(n)
-            for i in 0..<n {
-                let index = max(0, min(levels.count - 1, levels.count - 1 - (n - 1 - i) * step))
-                let level = pow(levels.isEmpty ? 0 : levels[index], 0.7)
-                let width = min(spacing * 0.78, 12) * (0.8 + 0.25 * level)
-                let amp = min(1, 0.15 + level * 1.1)
-                let line = max(1.1, width * 0.13)
-                // where the bird's top and bottom sit relative to its origin, so it can be kept inside the frame
-                let top = (0.4 - 0.175 * amp) * width - line / 2
-                let bottom = (0.4 + 0.1 * amp) * width + line / 2
-                let wanted = size.height / 2 - (level - 0.25) * size.height * 0.8 - 0.4 * width
-                let lowest = size.height - bottom, highest = -top
-                let originY = lowest >= highest ? min(max(wanted, highest), lowest) : (size.height - (bottom - top)) / 2 - top
-                let origin = CGPoint(x: spacing * (CGFloat(i) + 0.5) - width / 2, y: originY)
-                let path = WingBeat(amp: amp).path(in: CGRect(origin: origin, size: CGSize(width: width, height: width)))
-                let t = Double(i) / Double(n - 1)
-                let newest = i == n - 1
-                gc.stroke(path, with: .color(newest ? Theme.pillAccent : Theme.pillInk.opacity(0.25 + 0.75 * pow(t, 1.3))),
-                          style: StrokeStyle(lineWidth: line, lineCap: .round, lineJoin: .round))
+        TimelineView(.animation) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            Canvas { gc, size in
+                let line: CGFloat = 1.7
+                let path = Self.path(levels: levels, size: size, line: line, t: t)
+                let shading = GraphicsContext.Shading.linearGradient(
+                    Gradient(stops: [
+                        .init(color: Theme.pillInk.opacity(0.1), location: 0),
+                        .init(color: Theme.pillInk.opacity(0.95), location: 0.72),
+                        .init(color: Theme.pillInk, location: 0.86),
+                        .init(color: Theme.pillAccent, location: 0.9),
+                        .init(color: Theme.pillAccent, location: 1),
+                    ]),
+                    startPoint: .zero, endPoint: CGPoint(x: size.width, y: 0))
+                gc.stroke(path, with: shading, style: StrokeStyle(lineWidth: line, lineCap: .round, lineJoin: .round))
             }
         }
     }

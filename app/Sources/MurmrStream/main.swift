@@ -8,6 +8,10 @@ MainActor.assumeIsolated {
         Snapshot.renderBrand(.icon, to: CommandLine.arguments[i + 1])
         return
     }
+    if let i = CommandLine.arguments.firstIndex(of: "--wave-strip"), CommandLine.arguments.count > i + 1 {
+        Snapshot.waveStrip(to: CommandLine.arguments[i + 1])
+        return
+    }
     if let i = CommandLine.arguments.firstIndex(of: "--brand-guide"), CommandLine.arguments.count > i + 1 {
         Snapshot.renderBrand(.guide, to: CommandLine.arguments[i + 1], dark: CommandLine.arguments.contains("dark"))
         return
