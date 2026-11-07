@@ -210,7 +210,7 @@ final class EngineController {
         state.engineStatus = "Engine dừng: \(why)"
         state.setPhase(.error(String(why.prefix(70))), resetAfter: 6)
         if failures >= 4 {
-            state.engineStatus += " (đã thử lại \(failures - 1) lần; chọn «Khởi động lại engine» sau khi sửa)"
+            state.engineStatus += " (đã thử lại \(failures - 1) lần; chọn Khởi động lại engine sau khi sửa)"
             return
         }
         Task {

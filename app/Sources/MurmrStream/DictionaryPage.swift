@@ -73,7 +73,7 @@ struct DictionaryPage: View {
     private var fixesSection: some View {
         VStack(alignment: .leading, spacing: Theme.Space.m) {
             Eyebrow("Sửa cứng")
-            Text("Thay thẳng bằng code, không qua AI, ở mọi chỗ khớp. Chỉ nên dùng cho cụm nhiều từ, hoặc từ không bao giờ là thật (ví dụ «push request» thành «pull request»). Đừng dùng cho từ có thể đúng, như tên một người thật.")
+            Text("Thay thẳng bằng code, không qua AI, ở mọi chỗ khớp. Chỉ nên dùng cho cụm nhiều từ, hoặc từ không bao giờ là thật (ví dụ **push request** thành **pull request**). Đừng dùng cho từ có thể đúng, như tên một người thật.")
                 .font(Theme.Typeface.caption)
                 .foregroundStyle(Theme.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)

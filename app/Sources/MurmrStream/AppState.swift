@@ -220,8 +220,8 @@ final class AppState: ObservableObject {
         demoTask?.cancel()
         resetTask?.cancel()
         demoTask = Task {
-            resolveIcon("com.mitchellh.ghostty")
-            style = "casual"
+            appIcon = NSApp.applicationIconImage
+            style = AppsFile.defaultProfileLabel()
             clearLevels()
             setPhase(.recording)
             for i in 0..<56 {
@@ -236,7 +236,7 @@ final class AppState: ObservableObject {
             setPhase(.cleaning)
             try? await Task.sleep(for: .seconds(0.9))
             if Task.isCancelled { return }
-            setPhase(.done("Hôm nay tao push code lên main xong rồi review giúp tao nha"), resetAfter: 2.4)
+            setPhase(.done("Chiều nay họp lúc ba giờ, nhớ gửi bản báo cáo trước nhé."), resetAfter: 2.4)
         }
     }
 }

@@ -82,6 +82,24 @@ enum AppsFile {
 
     static var path: String { overridePath ?? NSHomeDirectory() + "/.config/murmr/apps.txt" }
 
+    /// The label of the profile the user set as default ("tao / mày"), or "" when pronouns are left alone. The notch
+    /// preview and the demo show it, so they never show a way of speaking the user did not choose.
+    static func defaultProfileLabel() -> String {
+        let text = (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
+        let entries = parse(text)
+        var defaultID: String?
+        var profiles: [String: PronounProfile] = [:]
+        for entry in entries {
+            switch entry.kind {
+            case .defaultRule(let id): defaultID = id
+            case .profile(let p): profiles[p.id] = p
+            default: break
+            }
+        }
+        guard let id = defaultID, let profile = profiles[id] else { return "" }
+        return profile.label
+    }
+
     static func parseProfile(_ line: String) -> PronounProfile? {
         let t = line.trimmingCharacters(in: .whitespaces)
         let fields = t.split(whereSeparator: \.isWhitespace).map(String.init)
@@ -260,7 +278,7 @@ final class AppsStore: ObservableObject {
             return nil
         }
         if let same = profiles.first(where: { $0.selfWord == selfWord && $0.you == you && $0.we == we }) {
-            message = "Đã có «\(same.detail)»."
+            message = "Đã có cách xưng hô này rồi."
             return nil
         }
         message = nil
@@ -321,7 +339,7 @@ final class AppsStore: ObservableObject {
             if case .title(let t, _) = $0.kind { return t.lowercased() == text.lowercased() } else { return false }
         }
         guard !taken else {
-            message = "Đã có quy tắc cho «\(text)»."
+            message = "Đã có quy tắc cho tiêu đề này."
             return false
         }
         message = nil

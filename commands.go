@@ -19,7 +19,7 @@ func runCommand(name string, args []string) error {
 	case "hints":
 		return cmdHints()
 	case "pronouns":
-		return cmdPronouns()
+		return cmdPronouns(args)
 	case "drill":
 		return cmdDrill(args)
 	case "progress":
@@ -188,8 +188,40 @@ func pronounsJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{"presets": presets})
 }
 
-func cmdPronouns() error {
-	b, err := pronounsJSON()
+// resolveJSON says which profile would apply for an app (and an optional window title), as the engine itself decides it
+// at every dictation. Used to check that what the Settings window wrote is what the engine understands.
+func resolveJSON(pr Pronouns, bundle, title string) ([]byte, error) {
+	p := pr.For(appCtx{Bundle: bundle, Title: title})
+	id := p.ID
+	if p.IsKeep() {
+		id = profileKeepID
+	}
+	return json.Marshal(map[string]string{"id": id, "label": p.Label(), "self": p.Self, "you": p.You, "we": p.We})
+}
+
+// cmdPronouns prints the starting points for a profile, or with --for <bundle id> [--title <text>] which profile applies there.
+func cmdPronouns(args []string) error {
+	var bundle, title string
+	asking := false
+	for i := 0; i < len(args); i++ {
+		switch {
+		case args[i] == "--for" && i+1 < len(args):
+			asking, bundle = true, args[i+1]
+			i++
+		case args[i] == "--title" && i+1 < len(args):
+			title = args[i+1]
+			i++
+		default:
+			return fmt.Errorf(`usage: murmr pronouns [--for <bundle id> [--title "<window title>"]]`)
+		}
+	}
+	var b []byte
+	var err error
+	if asking {
+		b, err = resolveJSON(LoadPronouns(), bundle, title)
+	} else {
+		b, err = pronounsJSON()
+	}
 	if err != nil {
 		return err
 	}

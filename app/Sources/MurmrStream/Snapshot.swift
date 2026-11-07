@@ -98,7 +98,7 @@ enum Snapshot {
         let rows = [
             Row(label: "đang nói", phase: .recording),
             Row(label: "đang chép lời", phase: .transcribing),
-            Row(label: "xong (câu dài)", phase: .done("Hôm nay tao push code lên main xong rồi review giúp tao nha")),
+            Row(label: "xong (câu dài)", phase: .done("Chiều nay họp lúc ba giờ, nhớ gửi bản báo cáo trước nhé.")),
             Row(label: "lỗi", phase: .error("Không dán được, cần quyền Accessibility")),
         ]
         let layout = NotchLayout()
@@ -110,7 +110,7 @@ enum Snapshot {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                 let state = AppState()
                 state.phase = row.phase
-                state.style = "casual"
+                state.style = "tôi / bạn"
                 state.level = 0.5
                 state.levels = (0..<AppState.historyCount).map { CGFloat(0.25 + 0.5 * abs(sin(Double($0) / 4))) }
                 state.appIcon = NSWorkspace.shared.icon(forFile: "/System/Applications/Utilities/Terminal.app")
@@ -335,6 +335,31 @@ enum Snapshot {
             return text.hasPrefix("# my rules\ncom.google.Chrome tao-may\nprofile tao-may")
         }())
         try? FileManager.default.removeItem(atPath: tmp)
+        AppsFile.overridePath = nil
+
+        // --- the app and the engine agree: what the store writes is what the engine resolves (`murmr pronouns --for`)
+        let home = NSTemporaryDirectory() + "murmr-home-selftest"
+        try? FileManager.default.removeItem(atPath: home)
+        AppsFile.overridePath = home + "/.config/murmr/apps.txt"
+        let written2 = AppsStore()
+        written2.loadFile()
+        _ = written2.addProfile(selfWord: "mình", you: "cậu", we: "tụi mình")
+        _ = written2.addProfile(selfWord: "tôi", you: "bạn", we: "")
+        written2.setDefault("toi-ban")
+        written2.setProfile("minh-cau", for: "com.example.chat")
+        _ = written2.addTitleRule("- Gmail", profile: "keep")
+        func resolved(_ args: [String]) -> String {
+            guard let out = EngineCLI.runSync(["pronouns"] + args, env: ["HOME": home]), out.status == 0 else { return "no engine" }
+            return out.out
+        }
+        if resolved(["--for", "x"]) == "no engine" {
+            print("info the engine was not found next to the app: the app-and-engine agreement check was skipped")
+        } else {
+            check("engine: an app rule written by the app", resolved(["--for", "com.example.chat"]).contains("\"label\":\"mình / cậu\""))
+            check("engine: the default written by the app", resolved(["--for", "com.example.other"]).contains("\"label\":\"tôi / bạn\""))
+            check("engine: a title rule beats the app rule", resolved(["--for", "com.example.chat", "--title", "Inbox - Gmail"]).contains("\"id\":\"keep\""))
+        }
+        try? FileManager.default.removeItem(atPath: home)
         AppsFile.overridePath = nil
 
         // --- Keychain wrapper on a throw-away service

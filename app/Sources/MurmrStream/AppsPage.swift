@@ -15,7 +15,7 @@ struct AppsPage: View {
     var body: some View {
         PageScaffold(
             title: "Xưng hô",
-            subtitle: "Máy chép lời hay đổi «tao» thành «tôi», «mày» thành «bạn». Cho Murmr Stream biết bạn xưng hô thế nào, AI sẽ viết lại đúng như vậy. Mặc định nó giữ nguyên những gì nghe được."
+            subtitle: "Máy chép lời hay đổi **tao** thành **tôi**, **mày** thành **bạn**. Cho Murmr Stream biết bạn xưng hô thế nào, AI sẽ viết lại đúng như vậy. Mặc định nó giữ nguyên những gì nghe được."
         ) {
             profilesSection
             Hairline()
@@ -111,7 +111,7 @@ struct AppsPage: View {
     private var appsSection: some View {
         VStack(alignment: .leading, spacing: Theme.Space.m) {
             Eyebrow("Theo ứng dụng")
-            Text("Chỉ cần thêm app mà bạn xưng hô khác mặc định, ví dụ nói «tao/mày» với AI trong terminal nhưng «tôi/bạn» khi viết email.")
+            Text("Chỉ cần thêm app mà bạn xưng hô khác mặc định, ví dụ nói **tao/mày** với AI trong terminal nhưng **tôi/bạn** khi viết email.")
                 .font(Theme.Typeface.caption)
                 .foregroundStyle(Theme.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)

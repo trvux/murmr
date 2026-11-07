@@ -212,14 +212,23 @@ Pronouns: keep every pronoun exactly as the recognizer wrote it (tôi, tao, mày
 		strings.Join(back, "; ") + `. Keep "mình" when it clearly means an inclusive "we" (e.g. "mình merge luôn" = let's merge).` + rest + " Change no other pronoun."
 }
 
-// pronounPresets are starting points shown in Settings. Nothing here is applied unless the user adds it.
+// pronounPresets are starting points shown in Settings. Nothing here is applied unless the user adds it. They cover
+// the common pairs by the relationship between speaker and listener (peers, older to younger, younger to older,
+// formal), not any one person's habit.
 func pronounPresets() []Profile {
 	return []Profile{
 		{Self: "tôi", You: "bạn", We: "chúng tôi"},
 		{Self: "mình", You: "bạn", We: "chúng mình"},
-		{Self: "tao", You: "mày", We: "tụi tao"},
+		{Self: "mình", You: "cậu", We: "tụi mình"},
 		{Self: "tớ", You: "cậu", We: "tụi tớ"},
+		{Self: "tao", You: "mày", We: "tụi tao"},
+		{Self: "tui", You: "bạn", We: "tụi tui"},
 		{Self: "anh", You: "em"},
+		{Self: "chị", You: "em"},
+		{Self: "em", You: "anh"},
+		{Self: "em", You: "chị"},
+		{Self: "tôi", You: "anh"},
+		{Self: "tôi", You: "chị"},
 	}
 }
 

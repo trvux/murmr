@@ -63,11 +63,11 @@ final class DictionaryStore: ObservableObject {
         let t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty else { return false }
         guard !t.contains("->") else {
-            message = "Từ khoá không được chứa «->». Dùng ô «Sửa cứng» cho cặp nghe sai và đúng."
+            message = "Từ khoá không được chứa ký hiệu ->. Dùng mục Sửa cứng cho cặp nghe sai và đúng."
             return false
         }
         guard !terms.contains(where: { if case .term(let x) = $0.kind { return x.lowercased() == t.lowercased() } else { return false } }) else {
-            message = "«\(t)» đã có trong từ điển."
+            message = "\(t) đã có trong từ điển."
             return false
         }
         append(DictEntry(kind: .term(t), line: t))
@@ -79,7 +79,7 @@ final class DictionaryStore: ObservableObject {
         let to = rawTo.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !from.isEmpty, !to.isEmpty else { return false }
         guard !from.contains("->"), !to.contains("->") else {
-            message = "Không dùng ký hiệu «->» trong nội dung."
+            message = "Không dùng ký hiệu -> trong nội dung."
             return false
         }
         append(DictEntry(kind: .fix(from: from, to: to), line: "\(from) -> \(to)"))

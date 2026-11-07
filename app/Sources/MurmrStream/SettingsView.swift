@@ -195,7 +195,7 @@ struct PageScaffold<Content: View>: View {
             VStack(alignment: .leading, spacing: Theme.Space.xl) {
                 VStack(alignment: .leading, spacing: Theme.Space.s) {
                     Text(title).font(Theme.Typeface.display).foregroundStyle(Theme.ink)
-                    Text(subtitle)
+                    Text(LocalizedStringKey(subtitle))  // **bold** works, so a word can be stressed without quote marks
                         .font(Theme.Typeface.body)
                         .foregroundStyle(Theme.inkMuted)
                         .fixedSize(horizontal: false, vertical: true)
@@ -300,6 +300,8 @@ struct LivePreview: View {
 
     private let notchWidth: CGFloat = 200
     private let menuBar: CGFloat = 34
+    /// The way of addressing the user chose as default, if any; the preview shows what they would really see.
+    private let pronounLabel = AppsFile.defaultProfileLabel()
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -309,9 +311,9 @@ struct LivePreview: View {
 
             HStack(spacing: Theme.Space.l) {
                 Image(systemName: "apple.logo").font(Theme.Typeface.caption)
-                Text("Ghostty").font(Theme.Typeface.captionStrong)
+                Text("Murmr").font(Theme.Typeface.captionStrong)
                 Spacer()
-                Text("9:41").font(Theme.Typeface.captionStrong)
+                Text("15:11").font(Theme.Typeface.captionStrong)  // the author's birthday
             }
             .foregroundStyle(Theme.ink.opacity(0.8))
             .padding(.horizontal, Theme.Space.l)
@@ -358,16 +360,18 @@ struct LivePreview: View {
             .overlay(alignment: .top) {
                 VStack(spacing: 0) {
                     HStack(spacing: 0) {
-                        Image(systemName: "terminal.fill")
-                            .font(Theme.Typeface.body)
-                            .foregroundStyle(Theme.pillInk.opacity(0.9))
+                        Image(nsImage: NSApp.applicationIconImage)
+                            .resizable()
+                            .frame(width: Theme.Pill.iconSize, height: Theme.Pill.iconSize)
                             .frame(width: Theme.Pill.wing)
                         Spacer(minLength: notchWidth)
                         HStack(spacing: Theme.Space.xs) {
                             RecordingDot()
-                            Text("tao/mày")
-                                .font(Theme.Typeface.label)
-                                .foregroundStyle(Theme.pillInk.opacity(0.65))
+                            if !pronounLabel.isEmpty {
+                                Text(pronounLabel)
+                                    .font(Theme.Typeface.label)
+                                    .foregroundStyle(Theme.pillInk.opacity(0.65))
+                            }
                         }
                         .frame(width: Theme.Pill.wing)
                     }
@@ -428,7 +432,7 @@ struct GeneralPage: View {
         PageScaffold(title: "Chung", subtitle: "Trạng thái của engine và nơi lưu dữ liệu.") {
             if state.isLoading { ProgressBar(value: state.loadProgress) }
             if !state.engineReady && !state.isLoading {
-                MascotNote(mood: .oops, text: "Engine đang dừng. Bấm «Khởi động lại»; nếu vẫn không được, mở nhật ký engine ở dưới.", size: 64)
+                MascotNote(mood: .oops, text: "Engine đang dừng. Bấm Khởi động lại; nếu vẫn không được, mở nhật ký engine ở dưới.", size: 64)
             }
             VStack(alignment: .leading, spacing: 0) {
                 SettingRow(title: state.engineReady ? "Engine đang chạy" : "Engine chưa sẵn sàng", detail: state.engineStatus) {

@@ -145,7 +145,26 @@ func TestPronounsJSONOffersPresetsOnly(t *testing.T) {
 	for _, p := range got.Presets {
 		labels[p.Label] = true
 	}
-	if len(got.Presets) < 4 || !labels["tao / mày"] || !labels["tôi / bạn"] || !labels["mình / bạn"] {
+	if len(got.Presets) < 10 || !labels["tao / mày"] || !labels["tôi / bạn"] || !labels["mình / bạn"] || !labels["em / anh"] || !labels["tui / bạn"] {
 		t.Errorf("presets: %+v", got.Presets)
+	}
+}
+
+func TestResolveJSONIsWhatTheEngineDecides(t *testing.T) {
+	pr := ParsePronouns(sample)
+	for _, tc := range []struct{ bundle, title, id, label string }{
+		{"com.mitchellh.ghostty", "", "tao-may", "tao / mày"},
+		{"com.mitchellh.ghostty", "Inbox - Gmail", "keep", ""},
+		{"com.apple.Notes", "", "toi-ban", "tôi / bạn"},
+	} {
+		b, err := resolveJSON(pr, tc.bundle, tc.title)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got map[string]string
+		_ = json.Unmarshal(b, &got)
+		if got["id"] != tc.id || got["label"] != tc.label {
+			t.Errorf("%+v: got %v", tc, got)
+		}
 	}
 }
