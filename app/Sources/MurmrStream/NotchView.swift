@@ -207,12 +207,17 @@ struct FlockWave: View {
         let opacity: Double
         let lineWidth: CGFloat
         let share: Double  // of the full swing
+        let offset: Double  // where in its beat the line starts, so the lines cross each other instead of rising together
     }
 
+    /// Five lines, the first the main one. Different beat counts and speeds, some running the other way, and different
+    /// starting points, so they weave. Fewer is calmer, more is busier: four to six read well at the pill's height.
     static let layers: [Layer] = [
-        Layer(arches: 4.4, speed: 2.6, opacity: 1.0, lineWidth: 1.7, share: 1.0),
-        Layer(arches: 3.2, speed: -3.4, opacity: 0.5, lineWidth: 1.3, share: 0.7),
-        Layer(arches: 5.6, speed: 4.2, opacity: 0.28, lineWidth: 1.0, share: 0.5),
+        Layer(arches: 4.4, speed: 2.6, opacity: 1.0, lineWidth: 1.7, share: 1.0, offset: 0),
+        Layer(arches: 3.2, speed: -3.4, opacity: 0.6, lineWidth: 1.4, share: 0.82, offset: 1.3),
+        Layer(arches: 5.6, speed: 4.2, opacity: 0.44, lineWidth: 1.2, share: 0.66, offset: 2.4),
+        Layer(arches: 3.9, speed: -2.1, opacity: 0.32, lineWidth: 1.0, share: 0.52, offset: 4.1),
+        Layer(arches: 6.4, speed: 3.3, opacity: 0.22, lineWidth: 0.9, share: 0.4, offset: 5.2),
     ]
 
     /// One layer's line at time `t`. Pure, so it can be checked without a window. Short typed steps on purpose: the older
@@ -226,7 +231,7 @@ struct FlockWave: View {
         for s in 0...steps {
             let x: Double = Double(s) / Double(steps)
             let taper: Double = sin(x * Double.pi)  // zero at both ends
-            let phase: Double = x * 2 * Double.pi * layer.arches + t * layer.speed
+            let phase: Double = x * 2 * Double.pi * layer.arches + t * layer.speed + layer.offset
             let beat: Double = 1 - 2 * abs(sin(phase))  // +1 at the point (down), -1 at the top of the arch
             let y: Double = midY + beat * amplitude * layer.share * taper
             let point = CGPoint(x: x * Double(size.width), y: y)
