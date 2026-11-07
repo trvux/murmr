@@ -33,7 +33,8 @@ editorial: paper, ink, one clay accent, serif titles, hairlines, a single black 
 ## Releasing
 
 Versions are `VERSION` (one line, `0.1.0`). `bundle.sh` writes it into the app and the engine; the tag, the .dmg name and
-the release page all follow it. 0.x releases are marked pre-release.
+the release page all follow it. The workflow also uploads the same .dmg as `Murmr-Stream.dmg` (fixed name) for the README's
+direct link. Only versions with a dash (`1.0.0-beta`) are marked pre-release, because `/releases/latest` skips those.
 
 1. Move the entries under `## [Unreleased]` in `CHANGELOG.md` into a new `## [x.y.z] - YYYY-MM-DD` section, written for
    the person installing. The release workflow takes that section as the release notes and fails if it is missing.

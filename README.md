@@ -11,6 +11,9 @@ Hold a key, speak, release: your words appear in whatever app has focus. A free,
 dictation tool for macOS, built for **Vietnamese mixed with English**, written in Go.
 (The repo and the command are both called `murmr`.)
 
+**[Download for Mac](https://github.com/trvux/murmr/releases/latest/download/Murmr-Stream.dmg)** (Apple Silicon, macOS 14
+or later) · [all versions and notes](https://github.com/trvux/murmr/releases)
+
 ```
 hold RIGHT Option -> microphone (16 kHz)
    -> whisper-server (local, model stays loaded, Metal)  -> raw text
@@ -20,7 +23,7 @@ hold RIGHT Option -> microphone (16 kHz)
 
 ## Download
 
-Get the latest build from the [Releases page](https://github.com/trvux/murmr/releases): open the `.dmg`, drag
+Use the **Download for Mac** link at the top (it always points at the newest `Murmr-Stream.dmg`), open it, drag
 **Murmr Stream** into Applications. Every version has its own page with notes of what changed (they come from
 [CHANGELOG.md](CHANGELOG.md)) and a checksum. Needs Apple Silicon and macOS 14 or later (built for 14; tested on
 macOS 15 and later, there is no Mac on 14 to try it on).

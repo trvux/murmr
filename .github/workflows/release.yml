@@ -57,7 +57,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           flags=""
-          case "$VERSION" in 0.*|*-*) flags="--prerelease" ;; esac # 0.x and 1.0.0-beta are marked as pre-releases
+          case "$VERSION" in *-*) flags="--prerelease" ;; esac # only 1.0.0-beta style versions; GitHub's /releases/latest skips pre-releases
+          # the same .dmg under a fixed name, so the README can link straight to the newest download
+          cp "app/build/Murmr-Stream-${VERSION}.dmg" app/build/Murmr-Stream.dmg
           gh release create "${GITHUB_REF_NAME}" \
-            "app/build/Murmr-Stream-${VERSION}.dmg" "app/build/Murmr-Stream-${VERSION}.dmg.sha256" \
+            "app/build/Murmr-Stream.dmg" "app/build/Murmr-Stream-${VERSION}.dmg" "app/build/Murmr-Stream-${VERSION}.dmg.sha256" \
             --title "Murmr Stream ${VERSION}" --notes-file notes.md --draft $flags
