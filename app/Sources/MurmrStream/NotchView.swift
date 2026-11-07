@@ -194,30 +194,36 @@ struct WaveView: View {
     }
 }
 
-/// The brand's flock as a wave: seven small birds across the pill, sampled from the last two seconds of voice, the
-/// newest in clay on the right. Silence leaves them flat, as a resting line; the voice lifts each bird and opens its
-/// wings into the "v" of the logo, so loud speech is a flock rising, not a graph.
+/// The brand's flock as a wave: a long, fine line of small birds across the pill, one per slice of the last two seconds
+/// of voice, the newest in clay on the right and the older ones fading behind it like a trail. Silence leaves them
+/// flat on one line; the voice lifts each bird and opens its wings into the logo's "v". Every bird is kept inside the
+/// frame (its top and bottom, with the stroke), so none is ever cut off at the edge.
 struct FlockWave: View {
     let levels: [CGFloat]
 
     var body: some View {
         Canvas { gc, size in
-            let n = 6
+            let n = max(8, min(16, Int(size.width / 18)))
             let step = max(1, levels.count / n)
             let spacing = size.width / CGFloat(n)
             for i in 0..<n {
                 let index = max(0, min(levels.count - 1, levels.count - 1 - (n - 1 - i) * step))
                 let level = pow(levels.isEmpty ? 0 : levels[index], 0.7)
-                let width = min(24, spacing * 0.85) * (0.75 + 0.35 * level)  // big enough to read as a bird at pill size
-                let amp = min(1, 0.2 + level * 1.1)
-                let x = spacing * (CGFloat(i) + 0.5)
-                let y = size.height / 2 - (level - 0.3) * min(size.height * 0.5, 8)
-                let origin = CGPoint(x: x - width / 2, y: y - width * 0.36)
+                let width = min(spacing * 0.78, 12) * (0.8 + 0.25 * level)
+                let amp = min(1, 0.15 + level * 1.1)
+                let line = max(1.1, width * 0.13)
+                // where the bird's top and bottom sit relative to its origin, so it can be kept inside the frame
+                let top = (0.4 - 0.175 * amp) * width - line / 2
+                let bottom = (0.4 + 0.1 * amp) * width + line / 2
+                let wanted = size.height / 2 - (level - 0.25) * size.height * 0.8 - 0.4 * width
+                let lowest = size.height - bottom, highest = -top
+                let originY = lowest >= highest ? min(max(wanted, highest), lowest) : (size.height - (bottom - top)) / 2 - top
+                let origin = CGPoint(x: spacing * (CGFloat(i) + 0.5) - width / 2, y: originY)
                 let path = WingBeat(amp: amp).path(in: CGRect(origin: origin, size: CGSize(width: width, height: width)))
+                let t = Double(i) / Double(n - 1)
                 let newest = i == n - 1
-                let fade = 0.65 + 0.35 * Double(i) / Double(n - 1)
-                gc.stroke(path, with: .color(newest ? Theme.pillAccent : Theme.pillInk.opacity(fade)),
-                          style: StrokeStyle(lineWidth: max(1.6, width * 0.16), lineCap: .round, lineJoin: .round))
+                gc.stroke(path, with: .color(newest ? Theme.pillAccent : Theme.pillInk.opacity(0.25 + 0.75 * pow(t, 1.3))),
+                          style: StrokeStyle(lineWidth: line, lineCap: .round, lineJoin: .round))
             }
         }
     }
