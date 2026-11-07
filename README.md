@@ -13,6 +13,13 @@ hold RIGHT Option -> microphone (16 kHz)
    -> clipboard + Cmd+V into the focused app
 ```
 
+## Download
+
+Get the latest build from the [Releases page](https://github.com/trvux/murmr/releases): open the `.dmg`, drag
+**Murmr Stream** into Applications. Every version has its own page with notes of what changed (they come from
+[CHANGELOG.md](CHANGELOG.md)) and a checksum. The first launch needs an extra step because the app is not notarized
+by Apple yet; the release page explains it. Needs Apple Silicon and macOS 14 or later.
+
 ## What it does
 
 - **Hold-to-talk** on the right Option key (a listen-only `CGEventTap`; the key still works normally).

@@ -15,6 +15,9 @@ import (
 	"time"
 )
 
+// version is set at build time (-ldflags "-X main.version=...") from the VERSION file; "dev" for a plain go build.
+var version = "dev"
+
 func main() {
 	log.SetFlags(log.Ltime)
 	if len(os.Args) > 1 {
@@ -70,6 +73,7 @@ func daemon() {
 	} else {
 		log.Printf("vad: OFF (model missing or MURMR_VAD=off): Whisper may invent text from noise")
 	}
+	log.Printf("murmr %s", version)
 	log.Printf("starting whisper-server (first launch compiles Metal shaders, ~10s)...")
 	events.emit("loading", "stage", "whisper")
 	wh, err := StartWhisper(ctx, model, getenv("MURMR_PORT", "8178"), dict.WhisperPrompt(whisperPrompt), vadArgs()...)

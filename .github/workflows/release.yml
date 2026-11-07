@@ -1,0 +1,63 @@
+# Publishes a release when a version tag is pushed:  git tag v0.1.0 && git push origin v0.1.0
+# It builds the app on a clean machine, makes the .dmg, and creates the GitHub release with notes taken from
+# CHANGELOG.md. The release is created as a DRAFT: only the owner sees it, so the .dmg can be downloaded and tried
+# before the "Publish release" button makes it public. The tag must match the VERSION file, so the page, the file name and the app all say the same number.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # to create the release
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: The tag must match VERSION
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "tag ${GITHUB_REF_NAME} does not match VERSION v${version}"; exit 1
+          fi
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+
+      - name: Release notes from CHANGELOG.md
+        run: |
+          # the section "## [x.y.z]" up to the next "## "
+          awk -v v="$VERSION" '
+            /^## \[/ { if (on) exit; if (index($0, "[" v "]")) { on = 1; next } }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then echo "no section [${VERSION}] in CHANGELOG.md"; exit 1; fi
+          cat .github/release-footer.md >> notes.md
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/cache@v4
+        with:
+          path: app/vendor
+          key: whisper-${{ hashFiles('app/scripts/build-whisper.sh') }}
+
+      - name: Build and pack
+        run: |
+          brew install cmake || true
+          app/scripts/bundle.sh
+          app/scripts/make-dmg.sh
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=""
+          case "$VERSION" in 0.*|*-*) flags="--prerelease" ;; esac # 0.x and 1.0.0-beta are marked as pre-releases
+          gh release create "${GITHUB_REF_NAME}" \
+            "app/build/Murmr-Stream-${VERSION}.dmg" "app/build/Murmr-Stream-${VERSION}.dmg.sha256" \
+            --title "Murmr Stream ${VERSION}" --notes-file notes.md --draft $flags

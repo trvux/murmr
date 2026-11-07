@@ -33,10 +33,13 @@ func runCommand(name string, args []string) error {
 		return cmdModels(args)
 	case "providers":
 		return cmdProviders()
+	case "version":
+		fmt.Println("murmr", version)
+		return nil
 	case "fetch-models":
 		return cmdFetchModels()
 	default:
-		return fmt.Errorf("unknown command %q (try: report, forget, hints, styles, drill, progress, score, clean, models, providers, fetch-models)", name)
+		return fmt.Errorf("unknown command %q (try: report, forget, hints, styles, drill, progress, score, clean, models, providers, fetch-models, version)", name)
 	}
 }
 

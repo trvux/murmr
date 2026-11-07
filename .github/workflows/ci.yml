@@ -1,0 +1,44 @@
+# On every push and pull request: build everything on a clean macOS 14 machine and run the checks.
+# This is the answer to "does it build and start anywhere other than my laptop?"
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-14 # Apple Silicon, macOS 14: the oldest system the app claims to support
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the build number is the commit count
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Engine checks
+        run: |
+          go vet .
+          go test .
+
+      - name: Cache the self-built whisper-server
+        uses: actions/cache@v4
+        with:
+          path: app/vendor
+          key: whisper-${{ hashFiles('app/scripts/build-whisper.sh') }}
+
+      - name: Build the app (needs cmake the first time, for whisper-server)
+        run: |
+          brew install cmake || true
+          app/scripts/bundle.sh # ad-hoc signed: there is no certificate on the runner
+
+      - name: whisper-server starts on macOS 14
+        run: '"app/build/Murmr Stream.app/Contents/Resources/whisper-server" --help 2>&1 | head -5'
+
+      - name: App checks
+        run: |
+          app/scripts/design-lint.sh
+          "app/build/Murmr Stream.app/Contents/MacOS/MurmrStream" --dict-selftest

@@ -7,9 +7,12 @@ set -euo pipefail
 cd "${0:A:h}/.."   # app/
 
 APP="build/Murmr Stream.app"
+# One source of truth for the version: the VERSION file at the repo root (see CHANGELOG.md and "Releasing" in CLAUDE.md).
+VERSION="$(tr -d '[:space:]' < ../VERSION)"
+BUILD="$(git -C .. rev-list --count HEAD 2>/dev/null || echo 1)"   # always grows, as macOS wants
 
 echo "==> engine (Go)"
-(cd .. && go build -o app/build/murmr .)
+(cd .. && go build -ldflags "-X main.version=$VERSION" -o app/build/murmr .)
 
 echo "==> speech engine (whisper-server, one self-contained file; built once, see scripts/build-whisper.sh)"
 [[ -x vendor/whisper-server ]] || scripts/build-whisper.sh
@@ -23,6 +26,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/MurmrStream"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" -c "Set :CFBundleVersion $BUILD" "$APP/Contents/Info.plist"
 cp build/murmr "$APP/Contents/Resources/murmr"
 cp vendor/whisper-server "$APP/Contents/Resources/whisper-server"
 mkdir -p "$APP/Contents/Resources/licenses"
@@ -34,4 +38,4 @@ codesign --force --sign "${MURMR_SIGN_ID:--}" "$APP/Contents/Resources/whisper-s
 codesign --force --deep --sign "${MURMR_SIGN_ID:--}" "$APP"
 codesign --verify --deep --strict "$APP"
 
-echo "built: $PWD/$APP"
+echo "built: $PWD/$APP  (version $VERSION, build $BUILD)"
