@@ -408,26 +408,112 @@ struct MenuField<Content: View>: View {
 
 // MARK: - Brand artwork (rendered to files by `MurmrStream --app-icon` and `--dmg-background`)
 
-/// The app icon: the typographic mark ("Murmr" is set in the serif) reduced to its initial, in paper on ink, with a
-/// small clay pill beneath it, the same pill the notch grows. macOS icons are an 824 pt body inside a 1024 pt canvas.
+/// One wing-beat: two curved arms that meet at the body, like a bird seen from a distance. The brand's mark is a
+/// flock of these (a murmuration: "Murmr" is its first syllables), one of them in the accent colour.
+struct WingBeat: Shape {
+    func path(in r: CGRect) -> Path {
+        let w = r.width
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX, y: r.minY + 0.32 * w))
+        p.addQuadCurve(to: CGPoint(x: r.minX + 0.5 * w, y: r.minY + 0.50 * w), control: CGPoint(x: r.minX + 0.25 * w, y: r.minY + 0.04 * w))
+        p.addQuadCurve(to: CGPoint(x: r.maxX, y: r.minY + 0.32 * w), control: CGPoint(x: r.minX + 0.75 * w, y: r.minY + 0.04 * w))
+        return p
+    }
+}
+
+/// A flock drawn on a canvas: each bird has a centre (x, y as fractions of the canvas) and a width (a fraction of the
+/// canvas width). `weight` is the stroke as a fraction of a bird's width: thin for large art, heavier for small icons.
+struct Murmuration: View {
+    struct Bird {
+        var x: CGFloat
+        var y: CGFloat
+        var size: CGFloat
+        var accent = false
+    }
+
+    var birds: [Bird]
+    var weight: CGFloat = 0.175
+    var tone: Color = Theme.ink
+    var accent: Color = Theme.signal
+
+    var body: some View {
+        GeometryReader { g in
+            ForEach(Array(birds.enumerated()), id: \.offset) { _, b in
+                let w = b.size * g.size.width
+                WingBeat()
+                    .stroke(b.accent ? accent : tone, style: StrokeStyle(lineWidth: max(1.4, w * weight), lineCap: .round, lineJoin: .round))
+                    .frame(width: w, height: w * 0.56)
+                    .position(x: b.x * g.size.width, y: b.y * g.size.height)
+            }
+        }
+    }
+
+    /// The brand's flock, exactly as drawn in the chosen concept "D": eight birds flowing up and to the right, big and
+    /// near at the lower left, small and far at the upper right, the fifth in the accent colour. Positions are fractions
+    /// of a square canvas; the stroke is 17.5% of a bird's width.
+    static let d: [Bird] = [
+        Bird(x: 0.1933, y: 0.6733, size: 0.1333), Bird(x: 0.3267, y: 0.5467, size: 0.12), Bird(x: 0.4733, y: 0.4667, size: 0.104),
+        Bird(x: 0.62, y: 0.4267, size: 0.088), Bird(x: 0.74, y: 0.3533, size: 0.072, accent: true), Bird(x: 0.2667, y: 0.4, size: 0.08),
+        Bird(x: 0.4333, y: 0.6333, size: 0.0933), Bird(x: 0.5867, y: 0.5333, size: 0.0733),
+    ]
+
+    /// The same flock, scaled up about its own centre so it spans `width` of the canvas, and centred on it. Nothing
+    /// about the arrangement changes: it is the whole picture made bigger.
+    static func centered(_ birds: [Bird], width: CGFloat) -> [Bird] {
+        let left = birds.map { $0.x - $0.size / 2 }.min() ?? 0, right = birds.map { $0.x + $0.size / 2 }.max() ?? 1
+        let top = birds.map { $0.y - $0.size * 0.28 }.min() ?? 0, bottom = birds.map { $0.y + $0.size * 0.28 }.max() ?? 1
+        let k = width / (right - left)
+        let cx = (left + right) / 2, cy = (top + bottom) / 2
+        return birds.map { Bird(x: 0.5 + ($0.x - cx) * k, y: 0.5 + ($0.y - cy) * k, size: $0.size * k, accent: $0.accent) }
+    }
+}
+
+/// The app icon: the flock on paper, in the same ink and clay as the rest of the app. macOS icons are an 824 pt body
+/// inside a 1024 pt canvas.
 struct AppIconArt: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 184, style: .continuous)
-                .fill(Theme.ink)
+                .fill(Theme.paper)
                 .frame(width: 824, height: 824)
-            VStack(spacing: 34) {
-                Text("M")
-                    .font(.system(size: 560, weight: .semibold, design: .serif))
-                    .foregroundStyle(Theme.paper)
-                    .frame(height: 430)
-                Capsule()
-                    .fill(Theme.signal)
-                    .frame(width: 176, height: 46)
-            }
-            .offset(y: -6)
+            RoundedRectangle(cornerRadius: 184, style: .continuous)
+                .strokeBorder(Theme.ink.opacity(0.14), lineWidth: 3)  // so a paper icon still has an edge on a light desktop
+                .frame(width: 824, height: 824)
+            Murmuration(birds: Murmuration.centered(Murmuration.d, width: 0.8))
+                .frame(width: 824, height: 824)
         }
         .frame(width: 1024, height: 1024)
+    }
+}
+
+/// The wide banner at the top of the README: the name on the left and a flock streaming away to the right.
+struct BannerArt: View {
+    static let size = CGSize(width: 1600, height: 420)
+
+    var body: some View {
+        ZStack {
+            Theme.paper
+            Murmuration(birds: Murmuration.centered(Murmuration.d, width: 0.9))
+                .frame(width: 400, height: 400)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                .padding(.trailing, 150)
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Murmr")
+                    .font(.system(size: 92, weight: .semibold, design: .serif))
+                    .foregroundStyle(Theme.ink)
+                Text("STREAM")
+                    .font(.system(size: 22, weight: .semibold))
+                    .tracking(9)
+                    .foregroundStyle(Theme.inkMuted)
+                Text("Giữ phím, nói, thả ra: chữ hiện ra ở app đang dùng.")
+                    .font(.system(size: 22))
+                    .foregroundStyle(Theme.inkMuted)
+                    .padding(.top, 18)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .padding(.leading, 96)
+        }
+        .frame(width: Self.size.width, height: Self.size.height)
     }
 }
 
@@ -444,7 +530,7 @@ struct DmgBackgroundArt: View {
                     .foregroundStyle(Theme.ink)
                     .padding(.top, 38)
                 Spacer()
-                Text("Lần đầu mở, macOS sẽ chặn vì app chưa được Apple công chứng.\nVào System Settings → Privacy & Security → Open Anyway.")
+                Text("Lần đầu mở bị chặn? Đó là vì app chưa được Apple công chứng.\nBấm ⌘ Space, gõ Privacy & Security, rồi bấm Open Anyway.")
                     .font(.system(size: 12))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(Theme.inkMuted)

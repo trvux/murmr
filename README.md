@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/banner-dark.png">
+    <img src="docs/banner-light.png" alt="Murmr Stream" width="820">
+  </picture>
+</p>
+
 # Murmr Stream
 
 Hold a key, speak, release: your words appear in whatever app has focus. A free, local-first
