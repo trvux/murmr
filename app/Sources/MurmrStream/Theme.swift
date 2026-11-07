@@ -800,3 +800,22 @@ struct GuideArt: View {
         .overlay(card.strokeBorder(Theme.rule))
     }
 }
+
+/// The mascot with one short line beside it: the app's voice in empty, waiting and failed states.
+struct MascotNote: View {
+    var mood: MascotMood
+    var text: String
+    var size: CGFloat = 56
+    var tone: Color = Theme.inkMuted
+
+    var body: some View {
+        HStack(spacing: Theme.Space.m) {
+            Mascot(mood: mood, size: size).frame(width: size, height: size)
+            Text(text)
+                .font(Theme.Typeface.caption)
+                .foregroundStyle(tone)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+    }
+}

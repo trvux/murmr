@@ -22,6 +22,10 @@ enum Snapshot {
         let state = AppState()
         state.engineReady = true
         state.engineStatus = "Sẵn sàng · giữ Option phải để nói"
+        if ProcessInfo.processInfo.environment["MURMR_SNAPSHOT_ENGINE"] == "stopped" {  // the failed state, for checking its look
+            state.engineReady = false
+            state.engineStatus = "Engine dừng: không tải được model giọng nói"
+        }
         if ProcessInfo.processInfo.environment["MURMR_SNAPSHOT_PENDING"] == "1" { state.needsRestart = true }
         if ProcessInfo.processInfo.environment["MURMR_SNAPSHOT_LOADING"] == "1" {  // show the startup bar
             state.engineReady = false

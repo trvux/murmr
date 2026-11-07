@@ -41,7 +41,7 @@ struct DictionaryPage: View {
                 .foregroundStyle(Theme.inkMuted)
 
             if store.terms.isEmpty {
-                emptyNote("Chưa có từ khoá nào.")
+                emptyNote("Chưa có từ khoá nào. Thêm tên người hay thuật ngữ bạn hay nói.")
             } else {
                 RuledList(items: store.terms) { entry in
                     HStack {
@@ -79,7 +79,7 @@ struct DictionaryPage: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             if store.fixes.isEmpty {
-                emptyNote("Chưa có cặp nào.")
+                emptyNote("Chưa có cặp nào.", mood: nil)
             } else {
                 RuledList(items: store.fixes) { entry in
                     HStack(spacing: Theme.Space.m) {
@@ -127,9 +127,9 @@ struct DictionaryPage: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             if !hints.loaded {
-                emptyNote("Đang đọc lịch sử…")
+                emptyNote("Đang đọc lịch sử…", mood: .sleeping)
             } else if hints.hints.isEmpty {
-                emptyNote("Chưa có cặp nào. Dùng thêm vài ngày, các lỗi lặp lại sẽ hiện ở đây.")
+                emptyNote("Chưa có cặp nào. Dùng thêm vài ngày, các lỗi lặp lại sẽ hiện ở đây.", mood: .sleeping)
             } else {
                 RuledList(items: hints.hints) { hint in
                     HStack(spacing: Theme.Space.m) {
@@ -150,7 +150,12 @@ struct DictionaryPage: View {
         }
     }
 
-    private func emptyNote(_ text: String) -> some View {
-        Text(text).font(Theme.Typeface.caption).foregroundStyle(Theme.inkFaint)
+    /// An empty list says so; where the page has more than one, only the first and the last carry the mascot.
+    @ViewBuilder private func emptyNote(_ text: String, mood: MascotMood? = .idle) -> some View {
+        if let mood {
+            MascotNote(mood: mood, text: text, size: 48)
+        } else {
+            Text(text).font(Theme.Typeface.caption).foregroundStyle(Theme.inkFaint)
+        }
     }
 }

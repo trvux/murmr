@@ -32,7 +32,7 @@ struct AppsPage: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             if store.listed.isEmpty {
-                Text("Đang tìm các ứng dụng…").font(Theme.Typeface.caption).foregroundStyle(Theme.inkFaint)
+                MascotNote(mood: .sleeping, text: "Đang tìm các ứng dụng…")
             } else {
                 RuledList(items: store.listed) { app in
                     AppRow(app: app, store: store)
@@ -175,7 +175,7 @@ private struct AppPicker: View {
                         .buttonStyle(.plain)
                     }
                     if filtered.isEmpty {
-                        Text("Không thấy ứng dụng nào.").font(Theme.Typeface.caption).foregroundStyle(Theme.inkFaint)
+                        MascotNote(mood: .oops, text: "Không thấy ứng dụng nào.", size: 44)
                     }
                 }
             }

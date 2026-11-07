@@ -427,6 +427,9 @@ struct GeneralPage: View {
     var body: some View {
         PageScaffold(title: "Chung", subtitle: "Trạng thái của engine và nơi lưu dữ liệu.") {
             if state.isLoading { ProgressBar(value: state.loadProgress) }
+            if !state.engineReady && !state.isLoading {
+                MascotNote(mood: .oops, text: "Engine đang dừng. Bấm «Khởi động lại»; nếu vẫn không được, mở nhật ký engine ở dưới.", size: 64)
+            }
             VStack(alignment: .leading, spacing: 0) {
                 SettingRow(title: state.engineReady ? "Engine đang chạy" : "Engine chưa sẵn sàng", detail: state.engineStatus) {
                     OutlineButton(title: "Khởi động lại", symbol: "arrow.clockwise", action: actions.restartEngine)

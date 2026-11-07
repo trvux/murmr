@@ -92,9 +92,8 @@ struct AIPage: View {
             if settings.isReady(p) {
                 modelSection(p)
                 if let result = settings.testResults[p.id] {
-                    Text(result)
-                        .font(Theme.Typeface.caption)
-                        .foregroundStyle(result.hasPrefix("Khoá hoạt động") || result.hasPrefix("Dịch vụ trên máy") ? Theme.sage : Theme.signal)
+                    let ok = result.hasPrefix("Khoá hoạt động") || result.hasPrefix("Dịch vụ trên máy")
+                    MascotNote(mood: ok ? .done : .oops, text: result, size: 44, tone: ok ? Theme.sage : Theme.signal)
                 }
                 HStack(spacing: Theme.Space.s) {
                     OutlineButton(title: settings.testing == p.id ? "Đang thử…" : (p.takesKey ? "Thử khoá" : "Thử kết nối"), symbol: "checkmark.seal") {
