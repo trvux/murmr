@@ -219,3 +219,84 @@ struct SettingRow<Control: View>: View {
         .padding(.vertical, Theme.Space.m)
     }
 }
+
+/// A single-line text field: raised paper, hairline border, and the accent on focus.
+struct InputField: View {
+    let placeholder: String
+    @Binding var text: String
+    var onSubmit: () -> Void = {}
+
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField(placeholder, text: $text)
+            .textFieldStyle(.plain)
+            .font(Theme.Typeface.body)
+            .foregroundStyle(Theme.ink)
+            .focused($focused)
+            .onSubmit(onSubmit)
+            .padding(.horizontal, Theme.Space.m)
+            .padding(.vertical, Theme.Space.s)
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous).fill(Theme.paperRaised))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
+                    .strokeBorder(focused ? Theme.signal : Theme.rule, lineWidth: focused ? 1.5 : 1)
+            )
+            .animation(Theme.Motion.quick, value: focused)
+    }
+}
+
+/// A quiet "x" that removes a list row. It carries a label for VoiceOver and a tooltip.
+struct RemoveButton: View {
+    let label: String
+    let action: () -> Void
+
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(Theme.Typeface.captionStrong)
+                .foregroundStyle(hover ? Theme.ink : Theme.inkFaint)
+                .frame(width: Theme.Space.xl, height: Theme.Space.xl)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+        .help(label)
+        .accessibilityLabel(label)
+        .animation(Theme.Motion.quick, value: hover)
+    }
+}
+
+/// Rows of a list separated by hairlines (none above the first or below the last).
+struct RuledList<Item: Identifiable, Row: View>: View {
+    let items: [Item]
+    @ViewBuilder var row: (Item) -> Row
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                if index > 0 { Hairline() }
+                row(item).padding(.vertical, Theme.Space.s)
+            }
+        }
+    }
+}
+
+/// A thin progress bar: hairline track, accent fill.
+struct ProgressBar: View {
+    let value: Double
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Theme.rule)
+                Capsule().fill(Theme.signal).frame(width: geo.size.width * max(0, min(1, value)))
+            }
+        }
+        .frame(height: Theme.Space.xs)
+        .animation(Theme.Motion.quick, value: value)
+        .accessibilityValue("\(Int(max(0, min(1, value)) * 100)) phần trăm")
+    }
+}

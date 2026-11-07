@@ -10,6 +10,7 @@ struct SettingsActions {
 }
 
 enum SettingsTab: String, CaseIterable, Identifiable {
+    case dictionary
     case appearance
     case general
 
@@ -17,6 +18,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .dictionary: return "Từ điển"
         case .appearance: return "Giao diện"
         case .general: return "Chung"
         }
@@ -24,6 +26,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
+        case .dictionary: return "book"
         case .appearance: return "waveform"
         case .general: return "slider.horizontal.3"
         }
@@ -45,6 +48,7 @@ struct SettingsView: View {
             Rectangle().fill(Theme.rule).frame(width: 1)
             Group {
                 switch tab {
+                case .dictionary: DictionaryPage(actions: actions)
                 case .appearance: AppearancePage(actions: actions)
                 case .general: GeneralPage(state: state, actions: actions)
                 }
@@ -76,17 +80,36 @@ struct Sidebar: View {
 
             Spacer()
 
-            HStack(spacing: Theme.Space.s) {
-                Circle().fill(state.engineReady ? Theme.sage : Theme.signal).frame(width: 6, height: 6)
-                Text(state.engineReady ? "Sẵn sàng" : "Đang khởi động")
-                    .font(Theme.Typeface.caption)
-                    .foregroundStyle(Theme.inkMuted)
-            }
-            .padding(.horizontal, Theme.Space.m)
-            .padding(.bottom, Theme.Space.l)
+            EngineStatus(state: state)
+                .padding(.horizontal, Theme.Space.m)
+                .padding(.bottom, Theme.Space.l)
         }
         .padding(.horizontal, Theme.Space.s)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+/// The engine's state at the foot of the sidebar: a progress bar with the current step while it starts,
+/// then a dot and "Sẵn sàng".
+struct EngineStatus: View {
+    @ObservedObject var state: AppState
+
+    var body: some View {
+        if state.isLoading {
+            VStack(alignment: .leading, spacing: Theme.Space.s) {
+                ProgressBar(value: state.loadProgress)
+                Text(AppState.loadText(state.loadStage))
+                    .font(Theme.Typeface.caption)
+                    .foregroundStyle(Theme.inkMuted)
+            }
+        } else {
+            HStack(spacing: Theme.Space.s) {
+                Circle().fill(state.engineReady ? Theme.sage : Theme.signal).frame(width: 6, height: 6)
+                Text(state.engineReady ? "Sẵn sàng" : "Engine chưa chạy")
+                    .font(Theme.Typeface.caption)
+                    .foregroundStyle(Theme.inkMuted)
+            }
+        }
     }
 }
 
@@ -372,6 +395,7 @@ struct GeneralPage: View {
 
     var body: some View {
         PageScaffold(title: "Chung", subtitle: "Trạng thái của engine và nơi lưu dữ liệu.") {
+            if state.isLoading { ProgressBar(value: state.loadProgress) }
             VStack(alignment: .leading, spacing: 0) {
                 SettingRow(title: state.engineReady ? "Engine đang chạy" : "Engine chưa sẵn sàng", detail: state.engineStatus) {
                     OutlineButton(title: "Khởi động lại", symbol: "arrow.clockwise", action: actions.restartEngine)

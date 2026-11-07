@@ -83,8 +83,11 @@ open "app/build/Murmr Stream.app"
 - **Permissions.** The app asks for Microphone, Input Monitoring (the Option key) and Accessibility
   (pasting). With ad-hoc signing macOS forgets them on every rebuild; to keep them, create a self-signed
   code-signing certificate in your keychain and build with `MURMR_SIGN_ID="<its name>" app/scripts/bundle.sh`.
-- **Settings** (menu bar icon, "Cài đặt…"): choose the wave style (five, shown side by side), the notch
-  corner shape, and see the engine status. It is built to grow with more pages.
+- **Settings** (menu bar icon, "Cài đặt…"): **Từ điển** edits `dictionary.txt` (terms, hard fixes, and the
+  pairs learned from your history, which you can drop) without touching the file's comments; **Giao diện**
+  chooses the wave style (five, shown side by side) and the notch corner shape; **Chung** shows the engine
+  status. A thin bar at the foot of the sidebar shows engine startup progress (an estimate: the engine
+  reports each step, and loading Whisper is the long one). It is built to grow with more pages.
 - **Logs** go to `~/Library/Logs/Murmr Stream/engine.log`. The dictated text is never written there.
 - Only one engine can run at a time (they share port 8178, the microphone and the key), so quit
   `./run.sh` before opening the app.
@@ -107,6 +110,7 @@ and `MurmrStream --snapshot <appearance|general|pills> out.png [dark]` renders t
 | `./run.sh` | start dictating (loads `~/.config/murmr/env` first) |
 | `./murmr report` | recurring mishearings found in your history |
 | `./murmr forget "<heard text>"` | stop using a learned hint |
+| `./murmr hints` | the learned "heard => meant" pairs as JSON (what the Settings window shows) |
 | `./murmr clean [--casual] "<text>"` | run only the cleanup step, to try prompt changes |
 | `./murmr drill` | read practice sentences, get phoneme-level feedback and a replay in your voice |
 | `./murmr progress` | weekly accuracy and which sound classes are hardest |

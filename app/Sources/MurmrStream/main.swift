@@ -4,6 +4,14 @@ import AppKit
 // run() blocks, so `delegate` stays alive for the whole session (NSApplication only holds it weakly).
 MainActor.assumeIsolated {
     let app = NSApplication.shared
+    if CommandLine.arguments.contains("--dict-selftest") {
+        Snapshot.dictSelfTest()
+        return
+    }
+    if let i = CommandLine.arguments.firstIndex(of: "--dict-check") {
+        Snapshot.dictCheck(path: CommandLine.arguments.count > i + 1 ? CommandLine.arguments[i + 1] : DictFile.path)
+        return
+    }
     if let i = CommandLine.arguments.firstIndex(of: "--snapshot") {
         Snapshot.run(arguments: Array(CommandLine.arguments.dropFirst(i + 1)))
         return

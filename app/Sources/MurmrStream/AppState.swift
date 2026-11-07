@@ -36,16 +36,29 @@ final class AppState: ObservableObject {
     @Published var style = ""  // "casual", "neutral" or "" while unknown
     @Published var engineStatus = "Đang khởi động…"
     @Published var engineReady = false
+    /// Startup progress: which step the engine reports, and an estimated 0...1 for the bar. The bar is an
+    /// estimate (the engine does not know how long Whisper takes to load), so it creeps during that step.
+    @Published var loadStage = ""  // "" when not loading
+    @Published var loadProgress: Double = 0
 
+    var isLoading: Bool { !loadStage.isEmpty }
+
+    private var loadTask: Task<Void, Never>?
+    private var stageStartedAt = Date()
     private var resetTask: Task<Void, Never>?
     private var demoTask: Task<Void, Never>?
 
     func apply(_ ev: EngineEvent) {
         switch ev.e {
+        case "loading":
+            loadStage = ev.stage ?? ""
+            stageStartedAt = Date()
+            engineStatus = Self.loadText(loadStage) + "…"
         case "ready":
             engineReady = true
             engineStatus = "Sẵn sàng · giữ Option phải để nói"
             setPhase(.idle)
+            finishLoading()
         case "recording":
             demoTask?.cancel()
             clearLevels()
@@ -67,6 +80,65 @@ final class AppState: ObservableObject {
             setPhase(.error(ev.msg ?? "Có lỗi"), resetAfter: 4)
         default:
             break
+        }
+    }
+
+    static func loadText(_ stage: String) -> String {
+        switch stage {
+        case "starting": return "Đang khởi động"
+        case "dictionary": return "Đang nạp từ điển"
+        case "whisper": return "Đang nạp model Whisper"
+        case "audio": return "Đang mở micro"
+        case "keys": return "Đang bật phím nói"
+        case "ready": return "Sẵn sàng"
+        default: return ""
+        }
+    }
+
+    /// The engine process has just been (re)started.
+    func beginLoading() {
+        engineReady = false
+        loadStage = "starting"
+        loadProgress = 0
+        stageStartedAt = Date()
+        engineStatus = Self.loadText("starting") + "…"
+        loadTask?.cancel()
+        loadTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                self.loadProgress += (self.loadTarget() - self.loadProgress) * 0.12  // ease toward the target
+                try? await Task.sleep(for: .milliseconds(80))
+            }
+        }
+    }
+
+    /// The engine stopped before it was ready.
+    func failLoading() {
+        loadTask?.cancel()
+        loadStage = ""
+        loadProgress = 0
+    }
+
+    private func finishLoading() {
+        loadStage = "ready"  // the bar runs to the end and says "Sẵn sàng" for a moment
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(900))
+            guard let self, self.loadStage == "ready" else { return }
+            self.loadTask?.cancel()
+            self.loadStage = ""
+            self.loadProgress = 0
+        }
+    }
+
+    private func loadTarget() -> Double {
+        switch loadStage {
+        case "starting": return 0.04
+        case "dictionary": return 0.08
+        case "whisper":  // about 8 s on a cold start: creep from 10% to 88% over that time, never past it
+            return min(0.88, 0.10 + 0.78 * Date().timeIntervalSince(stageStartedAt) / 8)
+        case "audio": return 0.92
+        case "keys": return 0.96
+        default: return loadStage.isEmpty ? 0 : 1
         }
     }
 

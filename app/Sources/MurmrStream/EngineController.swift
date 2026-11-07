@@ -47,18 +47,23 @@ final class EngineController {
     }
 
     /// Where the models and the project live. The engine runs with this as its working directory.
-    static var homeDir: String {
+    static var homeDir: String { homeDirPath }
+
+    /// The same path without main-actor isolation, for background work (running `murmr hints`).
+    nonisolated static var homeDirPath: String {
         ProcessInfo.processInfo.environment["MURMR_HOME"] ?? NSHomeDirectory() + "/Documents/murmr"
     }
 
-    private func enginePath() -> String? {
+    nonisolated static func locateEngine() -> String? {
         let candidates = [
             ProcessInfo.processInfo.environment["MURMR_ENGINE"],
             Bundle.main.resourceURL?.appendingPathComponent("murmr").path,
-            Self.homeDir + "/murmr",
+            homeDirPath + "/murmr",
         ]
         return candidates.compactMap { $0 }.first { FileManager.default.isExecutableFile(atPath: $0) }
     }
+
+    private func enginePath() -> String? { Self.locateEngine() }
 
     func start() {
         guard let exe = enginePath() else {
@@ -110,8 +115,7 @@ final class EngineController {
         startedAt = Date()
         buffer.removeAll()
         lastStderr = ""
-        state.engineReady = false
-        state.engineStatus = "Đang nạp model (lần đầu ~10 giây)…"
+        state.beginLoading()
     }
 
     func stop() {
@@ -174,6 +178,7 @@ final class EngineController {
             start()
             return
         }
+        state.failLoading()
         failures = Date().timeIntervalSince(startedAt) > 20 ? 1 : failures + 1
         let why = lastStderr.isEmpty ? "mã thoát \(code)" : lastStderr
         state.engineReady = false
