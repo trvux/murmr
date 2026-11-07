@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"sort"
 	"strings"
 )
 
@@ -18,6 +19,8 @@ func runCommand(name string, args []string) error {
 		return cmdForget(args)
 	case "hints":
 		return cmdHints()
+	case "styles":
+		return cmdStyles()
 	case "drill":
 		return cmdDrill(args)
 	case "progress":
@@ -26,8 +29,10 @@ func runCommand(name string, args []string) error {
 		return cmdScore(args)
 	case "clean":
 		return cmdClean(args)
+	case "models":
+		return cmdModels(args)
 	default:
-		return fmt.Errorf("unknown command %q (try: report, forget, hints, drill, progress, score, clean)", name)
+		return fmt.Errorf("unknown command %q (try: report, forget, hints, styles, drill, progress, score, clean, models)", name)
 	}
 }
 
@@ -146,6 +151,30 @@ func cmdHints() error {
 		return err
 	}
 	b, err := hintsJSON(hist, LoadIgnored(ignoredPath()))
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(b))
+	return nil
+}
+
+// stylesJSON describes the built-in pronoun-style rules, so the app's Settings window can show which
+// apps are casual (tao/mày) by default without keeping a second copy of the list.
+func stylesJSON() ([]byte, error) {
+	casual := make([]string, 0, len(defaultCasualApps))
+	for bundle := range defaultCasualApps {
+		casual = append(casual, bundle)
+	}
+	sort.Strings(casual)
+	rules := make([]map[string]string, 0, len(defaultTitleRules))
+	for _, r := range defaultTitleRules {
+		rules = append(rules, map[string]string{"contains": r.contains, "style": r.style})
+	}
+	return json.Marshal(map[string]any{"casual": casual, "titleRules": rules})
+}
+
+func cmdStyles() error {
+	b, err := stylesJSON()
 	if err != nil {
 		return err
 	}

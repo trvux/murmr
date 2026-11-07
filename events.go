@@ -19,7 +19,7 @@ import (
 //	partial  stable, tentative     live caption while recording (see streaming.go); stable words stopped
 //	                               changing between two decodes, tentative ones may still be revised
 //	processing stage               "transcribe" or "cleanup", after the key is released
-//	done     text, ms              text was pasted
+//	done     text, ms, note        text was pasted; note says if a backup service was used ("" otherwise)
 //	skipped  reason                nothing worth pasting ("silent" or "no_speech")
 //	error    msg                   something failed
 //

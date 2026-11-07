@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -75,13 +76,13 @@ func (d deepseek) Clean(ctx context.Context, raw, extra string) (string, error) 
 
 // --- Claude (Messages API) ---
 
-type claude struct{ key, system string }
+type claude struct{ key, model, system string }
 
 func (claude) Name() string { return "claude" }
 
 func (c claude) Clean(ctx context.Context, raw, extra string) (string, error) {
 	body, _ := json.Marshal(map[string]any{
-		"model":       "claude-haiku-4-5-20251001",
+		"model":       c.model,
 		"max_tokens":  1024,
 		"temperature": 0.1,
 		"system":      c.system + extra,
@@ -123,7 +124,7 @@ func doJSON(req *http.Request, v any) error {
 
 // pickCleaner chooses a provider from MURMR_CLEANUP (deepseek|claude|none),
 // defaulting to whichever API key is present (DeepSeek first: cheapest).
-func pickCleaner(mode, deepseekKey, deepseekModel, anthropicKey, system string) Cleaner {
+func pickCleaner(mode, deepseekKey, deepseekModel, anthropicKey, claudeModel, system string) Cleaner {
 	switch mode {
 	case "none":
 		return nil
@@ -133,17 +134,76 @@ func pickCleaner(mode, deepseekKey, deepseekModel, anthropicKey, system string) 
 		}
 	case "claude":
 		if anthropicKey != "" {
-			return claude{anthropicKey, system}
+			return claude{anthropicKey, claudeModel, system}
 		}
 	default:
 		if deepseekKey != "" {
 			return deepseek{deepseekKey, deepseekModel, system}
 		}
 		if anthropicKey != "" {
-			return claude{anthropicKey, system}
+			return claude{anthropicKey, claudeModel, system}
 		}
 	}
 	return nil
 }
 
 const cleanupTimeout = 8 * time.Second
+
+// defaultClaudeModel is used unless ANTHROPIC_MODEL (set from Settings) names another.
+const defaultClaudeModel = "claude-haiku-4-5-20251001"
+
+// --- fallback between providers ---
+
+// fallbackCleaner tries the chosen provider and, if it fails or is too slow, the other one. It only exists when
+// the user turned fallback on (MURMR_FALLBACK=on) and has a key for both, because falling back sends the text to
+// a service other than the one picked. It reports which one answered so the app can tell the user.
+type fallbackCleaner struct{ primary, backup Cleaner }
+
+const (
+	primaryBudget   = 6 * time.Second // the chosen service gets this long before the other is tried
+	fallbackTimeout = 12 * time.Second
+)
+
+func (f *fallbackCleaner) Name() string {
+	return f.primary.Name() + " (backup " + f.backup.Name() + ")"
+}
+
+// Timeout is the whole budget for a dictation: longer than one provider's, so the backup gets a real turn.
+func (f *fallbackCleaner) Timeout() time.Duration { return fallbackTimeout }
+
+func (f *fallbackCleaner) Clean(ctx context.Context, raw, extra string) (string, error) {
+	text, _, err := f.CleanNote(ctx, raw, extra)
+	return text, err
+}
+
+// CleanNote also returns a short Vietnamese note when the backup was used or both failed, "" otherwise.
+func (f *fallbackCleaner) CleanNote(ctx context.Context, raw, extra string) (text, note string, err error) {
+	pctx, cancel := context.WithTimeout(ctx, primaryBudget)
+	text, perr := f.primary.Clean(pctx, raw, extra)
+	cancel()
+	if perr == nil && text != "" {
+		return text, "", nil
+	}
+	log.Printf("cleanup: %s failed (%v), trying %s", f.primary.Name(), perr, f.backup.Name())
+	text, berr := f.backup.Clean(ctx, raw, extra)
+	if berr == nil && text != "" {
+		return text, providerTitle(f.primary.Name()) + " không trả lời, đã dùng " + providerTitle(f.backup.Name()), nil
+	}
+	if perr == nil {
+		perr = berr
+	}
+	return "", "Cả hai dịch vụ đều lỗi, dán nguyên văn", perr
+}
+
+func providerTitle(name string) string {
+	if name == "claude" {
+		return "Claude"
+	}
+	return "DeepSeek"
+}
+
+// noteCleaner is implemented by cleaners that can explain what they did (the fallback one).
+type noteCleaner interface {
+	CleanNote(ctx context.Context, raw, extra string) (text, note string, err error)
+	Timeout() time.Duration
+}

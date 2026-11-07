@@ -191,10 +191,21 @@ func process(wh *Whisper, cleaner Cleaner, dict *Dictionary, j job) {
 	tSTT := time.Since(t0)
 
 	text := raw
+	note := "" // shown on the notch after the text, for example that the backup service was used
 	if cleaner != nil {
 		events.emit("processing", "stage", "cleanup")
-		ctx, cancel := context.WithTimeout(context.Background(), cleanupTimeout)
-		cleaned, err := cleaner.Clean(ctx, raw, stylePrompt(style))
+		timeout := cleanupTimeout
+		var cleaned string
+		var err error
+		if nc, ok := cleaner.(noteCleaner); ok {
+			timeout = nc.Timeout()
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		if nc, ok := cleaner.(noteCleaner); ok {
+			cleaned, note, err = nc.CleanNote(ctx, raw, stylePrompt(style))
+		} else {
+			cleaned, err = cleaner.Clean(ctx, raw, stylePrompt(style))
+		}
 		cancel()
 		if err != nil || cleaned == "" {
 			log.Printf("cleanup failed, using raw: %v", err)
@@ -218,7 +229,7 @@ func process(wh *Whisper, cleaner Cleaner, dict *Dictionary, j job) {
 		events.emit("error", "msg", "Không dán được, cần quyền Accessibility")
 		return
 	}
-	events.emit("done", "text", text, "ms", time.Since(t0).Milliseconds())
+	events.emit("done", "text", text, "ms", time.Since(t0).Milliseconds(), "note", note)
 }
 
 func getenv(k, def string) string {
@@ -235,7 +246,19 @@ func loadCleaner() (*Dictionary, Cleaner) {
 	hist, _ := LoadHistory(historyPath())
 	dict.Hints = LearnPairs(hist, LoadIgnored(ignoredPath()), learnMinCount)
 	log.Printf("dictionary: %d terms, learned hints: %d (from %d dictations)", len(dict.Terms), len(dict.Hints), len(hist))
-	cleaner := pickCleaner(os.Getenv("MURMR_CLEANUP"), os.Getenv("DEEPSEEK_API_KEY"), getenv("DEEPSEEK_MODEL", "deepseek-flash"), os.Getenv("ANTHROPIC_API_KEY"), dict.CleanupSystem(cleanupSystem))
+	pick := func(mode string) Cleaner {
+		return pickCleaner(mode, os.Getenv("DEEPSEEK_API_KEY"), getenv("DEEPSEEK_MODEL", "deepseek-flash"), os.Getenv("ANTHROPIC_API_KEY"), getenv("ANTHROPIC_MODEL", defaultClaudeModel), dict.CleanupSystem(cleanupSystem))
+	}
+	cleaner := pick(os.Getenv("MURMR_CLEANUP"))
+	if cleaner != nil && os.Getenv("MURMR_FALLBACK") == "on" {
+		other := "claude"
+		if cleaner.Name() == "claude" {
+			other = "deepseek"
+		}
+		if backup := pick(other); backup != nil { // nil when there is no key for the other service
+			cleaner = &fallbackCleaner{primary: cleaner, backup: backup}
+		}
+	}
 	if cleaner != nil {
 		log.Printf("cleanup: %s", cleaner.Name())
 	} else {
